@@ -5,14 +5,17 @@
 (function (global) {
   "use strict";
 
-  var REGISTRY = [
+  // A mock set in another folder (e.g. combined/) supplies its own registry
+  // through window.DesignSelectorConfig before this script loads.
+  var config = global.DesignSelectorConfig || {};
+  var REGISTRY = config.registry || [
     { number: 1, name: "Quick Open list", href: "1.html" },
     { number: 2, name: "Card strip", href: "2.html" },
     { number: 3, name: "Sidebar-native", href: "3.html" },
     { number: 4, name: "List + preview", href: "4.html" },
     { number: 5, name: "Minimal HUD", href: "5.html" },
   ];
-  var HOME = { name: "Comparison index", href: "index.html" };
+  var HOME = config.home || { name: "Comparison index", href: "index.html" };
   var SIDE_KEY = "dm-selector-side";
 
   function currentFile() {

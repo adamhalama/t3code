@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recent thread switcher (Ctrl+Tab) · combined 1 + 3 · design mocks</title>
+    <link rel="stylesheet" href="../shared/selector.css" />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: #141312;
+        color: #e7e5e4;
+        font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Adwaita Sans", sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 32px 64px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 24px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        margin: 36px 0 10px;
+        font-size: 16px;
+      }
+      p,
+      li {
+        color: #c2c0bb;
+      }
+      a {
+        color: #f0abfc;
+      }
+      code,
+      kbd {
+        font: 12px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: #292724;
+        color: #eeece8;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid #343230;
+      }
+      th {
+        color: #a8a29e;
+        font-weight: 500;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      td:first-child {
+        white-space: nowrap;
+        font-weight: 600;
+        color: #fafaf9;
+      }
+      .states a {
+        margin-right: 8px;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+      .note {
+        padding: 10px 14px;
+        border-left: 3px solid #c4578f;
+        background: #1c1b19;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Recent thread switcher: combined Quick Open list + sidebar-native</h1>
+      <p>
+        Round 2 for <code>fork/features/mru-tab-switcher/SPEC.md</code>. Back to round 1:
+        <a href="../index.html">the five original directions</a>.
+      </p>
+      <p>
+        <b>The idea.</b> The sidebar is always the primary switcher: while <kbd>Ctrl</kbd> is held, the thread you will jump
+        to is highlighted in the sidebar, other rows dim, MRU badges 1–9 replace the time slot, and a collapsed shelf
+        (Settled) opens just enough to show the selected thread. If the sidebar is collapsed, a slim panel slides in instead.
+        At the same time a Quick Open-style list mirrors the same selection. The list can be folded into a small pill that
+        only says “you are in a Ctrl+Tab switch”; with the list folded the sidebar highlight alone carries the selection.
+        The folded/expanded choice is remembered for the next Ctrl+Tab (here: <code>localStorage</code> key
+        <code>mru-combined-list</code>); there is no Settings entry.
+      </p>
+
+      <h2>Variations</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>List placement</th>
+            <th>Folded form</th>
+            <th>How list and sidebar are tied</th>
+            <th>Toggle</th>
+            <th>Open in state</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="1.html">1 · Top list + top pill</a></td>
+            <td>Quick Open list top-centre over the chat (direction 1)</td>
+            <td>Pill in the same top spot: <kbd>Ctrl</kbd><kbd>Tab</kbd> · badge · title · “of 9” · chevron</td>
+            <td>Matching MRU badges: the list's 1–9 badges are the sidebar's badges; the selected one is filled in both</td>
+            <td>Chevron in the list header; <kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+            <td class="states"><a href="1.html?state=open">open</a> <a href="1.html?state=cycled">cycled</a> <a href="1.html?state=pill">pill</a> <a href="1.html?state=sidebar-collapsed">sidebar-collapsed</a> <a href="1.html?state=sidebar-collapsed-pill">sidebar-collapsed-pill</a> <a href="1.html?state=single">single</a> <a href="1.html?state=long">long</a></td>
+          </tr>
+          <tr>
+            <td><a href="2.html">2 · Docked to sidebar</a></td>
+            <td>Two-line list attached flush to the sidebar's right edge, same dark surface</td>
+            <td>A tab on the sidebar edge beside the highlighted row, “2/9 ›”; it slides along as the selection jumps</td>
+            <td>Physical attachment plus a bracket line drawn from the highlighted sidebar row to the highlighted list row</td>
+            <td>Chevron in the list header; <kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+            <td class="states"><a href="2.html?state=open">open</a> <a href="2.html?state=cycled">cycled</a> <a href="2.html?state=pill">pill</a> <a href="2.html?state=sidebar-collapsed">sidebar-collapsed</a> <a href="2.html?state=sidebar-collapsed-pill">sidebar-collapsed-pill</a> <a href="2.html?state=single">single</a> <a href="2.html?state=long">long</a></td>
+          </tr>
+          <tr>
+            <td><a href="3.html">3 · Top list + bottom pill</a></td>
+            <td>Quick Open list top-centre; rows tagged “in Settled” when the sidebar had to reveal them</td>
+            <td>HUD carousel above the composer (direction 5): previous · selected · next, caption “2/9 · project”</td>
+            <td>Same left accent rail and tint on the selected list row as on the selected sidebar row</td>
+            <td>“Hide list” button in the footer; <kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+            <td class="states"><a href="3.html?state=open">open</a> <a href="3.html?state=cycled">cycled</a> <a href="3.html?state=pill">pill</a> <a href="3.html?state=sidebar-collapsed">sidebar-collapsed</a> <a href="3.html?state=sidebar-collapsed-pill">sidebar-collapsed-pill</a> <a href="3.html?state=single">single</a> <a href="3.html?state=long">long</a></td>
+          </tr>
+          <tr>
+            <td><a href="4.html">4 · Sidebar-header popover</a></td>
+            <td>Search row turns into a “Recent 2/9” chip; the list flies out beside it with a caret</td>
+            <td>No floating element: the list folds back into the chip, which then shows “2/9 · title”</td>
+            <td>The chip is the anchor and the toggle; badges match the sidebar</td>
+            <td>The chip itself; <kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+            <td class="states"><a href="4.html?state=open">open</a> <a href="4.html?state=cycled">cycled</a> <a href="4.html?state=pill">pill</a> <a href="4.html?state=sidebar-collapsed">sidebar-collapsed</a> <a href="4.html?state=sidebar-collapsed-pill">sidebar-collapsed-pill</a> <a href="4.html?state=single">single</a> <a href="4.html?state=long">long</a></td>
+          </tr>
+          <tr>
+            <td><a href="5.html">5 · Minimal</a></td>
+            <td>Compact rows (number, title, project; no status or time) centred in the chat</td>
+            <td>Tiny capsule just under the title bar: dot · <kbd>Ctrl</kbd><kbd>Tab</kbd> · 2/9</td>
+            <td>Only the shared position number; the sidebar does the rest</td>
+            <td>Small fold icon in the one-line footer; <kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+            <td class="states"><a href="5.html?state=open">open</a> <a href="5.html?state=cycled">cycled</a> <a href="5.html?state=pill">pill</a> <a href="5.html?state=sidebar-collapsed">sidebar-collapsed</a> <a href="5.html?state=sidebar-collapsed-pill">sidebar-collapsed-pill</a> <a href="5.html?state=single">single</a> <a href="5.html?state=long">long</a></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How to use the mocks</h2>
+      <ul>
+        <li>
+          Hold <kbd>Ctrl</kbd> or <kbd>Alt</kbd> and press <kbd>`</kbd> (<kbd>Shift</kbd>+<kbd>`</kbd> for previous). Release
+          to open the selection, <kbd>Esc</kbd> cancels, a quick tap goes to the previous thread with no UI. Real
+          <kbd>Ctrl</kbd>+<kbd>Tab</kbd> works where the browser passes it through (Electron).
+        </li>
+        <li>
+          While the switcher is open, <kbd>Ctrl</kbd>+<kbd>L</kbd> (or <kbd>Alt</kbd>+<kbd>L</kbd> in the simulation) folds
+          or unfolds the list. Clicking the chevron, button, chip or pill with <kbd>Ctrl</kbd> still held toggles too, and does
+          not commit or close the switcher; only releasing <kbd>Ctrl</kbd> commits.
+        </li>
+        <li>
+          Fold the list, release, then hold <kbd>Ctrl</kbd> again: the switcher reopens folded. The DEMO strip shows the saved
+          value and has “Toggle list” and “Forget saved list choice”.
+        </li>
+        <li>
+          URL states: <code>open</code> (list, 2nd selected), <code>cycled</code> (4th selected, a thread in the collapsed
+          Settled shelf), <code>pill</code>, <code>cycled-pill</code>, <code>sidebar-collapsed</code>,
+          <code>sidebar-collapsed-pill</code>, <code>single</code>, <code>long</code>. Add <code>&amp;demo=0</code> to hide the
+          demo strip. Presets that show the switcher also set the saved list choice.
+        </li>
+        <li>The numbered selector (top right) switches variations and keeps <code>?state=</code>; number keys 1–5 do the same.</li>
+      </ul>
+
+      <h2>Why the toggle key is Ctrl+L</h2>
+      <ul>
+        <li>It only exists while the switcher is open, so it shadows no app binding. “L” for list.</li>
+        <li>
+          Rejected: <kbd>Ctrl</kbd>+<kbd>Space</kbd> switches input source on macOS and toggles the IME on some Windows (CJK) and Linux (fcitx) setups;
+          <kbd>Ctrl</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> open Mission Control on macOS and arrows already move the selection.
+        </li>
+        <li>Risk: in a plain browser tab <kbd>Ctrl</kbd>+<kbd>L</kbd> focuses the address bar unless the page prevents it (it can).</li>
+      </ul>
+
+      <p class="note">
+        Fixtures are the round-1 set, with one change: the recent order puts “Translate WiX fragments” (in the collapsed
+        Settled shelf) 4th, so cycling to 4th makes the sidebar reveal and scroll to it.
+      </p>
+    </main>
+    <script src="registry.js"></script>
+    <script src="../shared/selector.js"></script>
+  </body>
+</html>

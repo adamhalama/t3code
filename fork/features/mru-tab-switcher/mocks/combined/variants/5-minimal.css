@@ -1,0 +1,118 @@
+/* C5 · Minimal: compact title + project rows in the middle of the chat;
+   folded, only a tiny "Ctrl Tab 2/9" capsule just under the title bar remains. */
+
+.c5-list-wrap {
+  position: absolute;
+  top: 40%;
+  left: calc(var(--cx-left) + (100% - var(--cx-left)) / 2);
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - var(--cx-left) - 32px));
+  max-height: calc(100% - var(--topbar-height) - 48px);
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #0d0d0d 94%, transparent);
+  border: 1px solid rgb(255 255 255 / 7%);
+  box-shadow: 0 16px 48px -16px rgb(0 0 0 / 85%);
+  --cx-swap-from: translate(-50%, -50%) scale(0.98);
+}
+.mru-layer.is-entering .c5-list-wrap {
+  animation: cx-swap 120ms ease-out;
+}
+.c5-fold {
+  position: absolute;
+  right: 6px;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  opacity: 0.7;
+}
+.c5-fold:hover {
+  opacity: 1;
+}
+.c5-list {
+  padding: 0 6px;
+}
+.c5-list .cx-row {
+  height: 26px;
+  font-size: 13px;
+  gap: 8px;
+}
+.c5-list .cx-row .t3-favicon {
+  display: none;
+}
+.c5-list .cx-row-project {
+  margin-left: auto;
+  padding-left: 12px;
+}
+.c5-list .cx-row:not(.is-selected) {
+  color: var(--muted-foreground);
+}
+.c5-list .cx-row.is-selected {
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+.c5-list .cx-row.is-selected .cx-num {
+  color: var(--foreground);
+}
+.c5-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 0 4px;
+  font-size: 11px;
+  color: var(--secondary-label);
+}
+.c5-foot .t3-kbd {
+  min-width: 0;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+.c5-dot {
+  margin: 0 4px;
+}
+
+.c5-pill {
+  position: absolute;
+  top: calc(var(--topbar-height) - 2px);
+  left: calc(var(--cx-left) + (100% - var(--cx-left)) / 2);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px 0 8px;
+  border-radius: 999px;
+  background: #141414;
+  border: 1px solid rgb(255 255 255 / 10%);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  --cx-swap-from: translateX(-50%) scale(0.9);
+}
+.c5-pill:hover {
+  color: var(--foreground);
+  border-color: rgb(255 255 255 / 18%);
+}
+.c5-pill .t3-kbd {
+  min-width: 0;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+.c5-pill-dot {
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.c5-pill-pos {
+  margin-left: 3px;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}

@@ -1,0 +1,327 @@
+/* Combined mocks: sidebar-native selection + Quick Open list / pill. */
+
+.mru-layer {
+  --cx-left: var(--sidebar-width);
+  --cx-panel-width: 300px;
+}
+.t3-app[data-collapsed="true"] .mru-layer {
+  --cx-left: var(--cx-panel-width);
+}
+.mru-layer[data-phase="open"] > .cx-no-hit {
+  pointer-events: none;
+}
+
+/* ---------- sidebar while switching ---------- */
+
+.cx-switching .t3-sidebar {
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 10%);
+}
+.t3-row.cx-dim {
+  opacity: 0.38;
+  background: transparent;
+}
+.t3-row.cx-dim.is-active {
+  background: var(--sidebar-row-selected);
+}
+.t3-row.cx-selected,
+.cx-panel-row.is-selected {
+  opacity: 1;
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+.t3-row.cx-selected::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+.t3-slim.cx-selected::before {
+  top: 6px;
+  bottom: 6px;
+}
+
+.cx-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(245 245 245 / 7%);
+  color: var(--muted-foreground);
+  font: 500 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.cx-badge.is-selected {
+  background: var(--primary);
+  color: #fff;
+}
+.cx-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cx-slot .t3-status-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.cx-sbbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 4px 8px 8px;
+  padding: 0 8px 0 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-size: 13px;
+  font-weight: 500;
+  flex: none;
+  white-space: nowrap;
+}
+.cx-sbbar-icon {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, var(--primary) 60%, white);
+}
+.cx-sbbar-label {
+  flex: 1;
+  min-width: 0;
+}
+.cx-sbbar-pos {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- collapsed sidebar: slim slide-in panel ---------- */
+
+.cx-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+}
+.cx-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--cx-panel-width);
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  border-right: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 24px 0 64px -24px rgb(0 0 0 / 90%);
+}
+.mru-layer.is-entering .cx-panel {
+  animation: cx-slide 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes cx-slide {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+.cx-panel-head {
+  display: flex;
+  align-items: center;
+  height: var(--topbar-height);
+  padding: 0 16px;
+  flex: none;
+}
+.cx-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.cx-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cx-panel-row.cx-dim {
+  opacity: 0.5;
+}
+.cx-panel-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.cx-panel-title,
+.cx-panel-project {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cx-panel-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.cx-panel-project {
+  font-size: 12px;
+  color: var(--secondary-label);
+}
+.cx-panel-row .t3-status-icon {
+  width: 14px;
+  height: 14px;
+}
+.cx-panel-row .t3-time {
+  font-size: 12px;
+}
+
+/* ---------- list rows (shared) ---------- */
+
+.cx-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 8px;
+  overflow-y: auto;
+  min-height: 0;
+  scroll-padding: 8px;
+}
+.cx-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.cx-row.is-two-line {
+  height: 44px;
+}
+.cx-row.is-selected {
+  background: rgb(245 245 245 / 9%);
+}
+.cx-row-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.cx-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+.cx-row-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  max-width: 45%;
+  min-width: 48px;
+  overflow: hidden;
+  font-size: 12px;
+  color: rgb(163 163 163 / 70%);
+}
+.cx-row-text .cx-row-project {
+  max-width: 100%;
+}
+.cx-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cx-env {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.cx-current-tag,
+.cx-loc {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.cx-loc {
+  border-style: dashed;
+}
+.cx-row-end {
+  margin-left: auto;
+  padding-left: 12px;
+  flex: none;
+  display: inline-flex;
+  font-size: 12px;
+}
+.cx-row-end .t3-status-icon {
+  width: 14px;
+  height: 14px;
+}
+.cx-num {
+  width: 14px;
+  flex: none;
+  text-align: right;
+  font-size: 12px;
+  color: var(--secondary-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.cx-footer {
+  gap: 12px;
+  padding: 8px 14px;
+}
+.cx-grow {
+  flex: 1;
+}
+
+/* Collapse / expand control. */
+.cx-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  flex: none;
+}
+.cx-toggle:hover {
+  background: rgb(245 245 245 / 8%);
+  color: var(--foreground);
+}
+.cx-toggle .t3-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Pills are toggles too: the whole pill expands the list. */
+.cx-pill {
+  cursor: pointer;
+  user-select: none;
+}
+
+.mru-layer.is-toggling .cx-anim {
+  animation: cx-swap 140ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes cx-swap {
+  from {
+    opacity: 0;
+    transform: var(--cx-swap-from, scale(0.97));
+  }
+}

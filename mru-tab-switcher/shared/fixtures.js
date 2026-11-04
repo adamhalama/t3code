@@ -223,14 +223,36 @@
     });
   }
 
-  function createStore() {
+  function readListPref(key) {
+    if (!key) return false;
+    try {
+      return localStorage.getItem(key) === "collapsed";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function writeListPref(key, collapsed) {
+    if (!key) return;
+    try {
+      localStorage.setItem(key, collapsed ? "collapsed" : "expanded");
+    } catch (e) {}
+  }
+
+  // opts.initialMru: alternative recent order; opts.listPrefKey: enables the
+  // remembered list/pill toggle (combined mocks only).
+  function createStore(opts) {
+    opts = opts || {};
+    var initialMru = opts.initialMru || INITIAL_MRU;
+    var listPrefKey = opts.listPrefKey || null;
     var listeners = [];
     var timer = null;
     var s = {
       dataset: "default",
       threads: cloneThreads("default"),
-      mru: INITIAL_MRU.slice(),
-      activeId: INITIAL_MRU[0],
+      mru: initialMru.slice(),
+      activeId: initialMru[0],
+      listCollapsed: readListPref(listPrefKey),
       collapsed: false,
       phase: "idle", // idle | pending | open
       selected: 0,
@@ -270,6 +292,8 @@
     var api = {
       HOLD_DELAY_MS: HOLD_DELAY_MS,
       state: s,
+      hasListToggle: !!listPrefKey,
+      listPrefKey: listPrefKey,
       subscribe: function (fn) {
         listeners.push(fn);
       },
@@ -295,6 +319,7 @@
         if (s.phase === "idle") {
           s.phase = "pending";
           s.held = true;
+          s.listCollapsed = readListPref(listPrefKey);
           s.selected = dir > 0 ? 1 : s.mru.length - 1;
           clearTimer();
           timer = setTimeout(function () {
@@ -353,16 +378,40 @@
         s.instant = false;
         emit(event || "click-commit");
       },
+      // Works only while the switcher is open; never commits or closes it.
+      toggleList: function () {
+        if (!listPrefKey || s.phase !== "open") return;
+        s.listCollapsed = !s.listCollapsed;
+        s.instant = false;
+        writeListPref(listPrefKey, s.listCollapsed);
+        emit(s.listCollapsed ? "list-collapsed" : "list-expanded");
+      },
+      forgetListPref: function () {
+        try {
+          if (listPrefKey) localStorage.removeItem(listPrefKey);
+        } catch (e) {}
+        s.listCollapsed = false;
+        emit("list-pref-cleared");
+      },
+      savedListPref: function () {
+        if (!listPrefKey) return null;
+        try {
+          return localStorage.getItem(listPrefKey);
+        } catch (e) {
+          return null;
+        }
+      },
       toggleCollapsed: function () {
         s.collapsed = !s.collapsed;
         emit("toggle-sidebar");
       },
       // Static presets for screenshots: no timers, modifier treated as held.
-      applyPreset: function (name) {
+      applyPreset: function (name, extra) {
+        extra = extra || {};
         clearTimer();
         s.dataset = name === "long" ? "long" : "default";
         s.threads = cloneThreads(s.dataset);
-        s.mru = name === "single" ? ["t-mru"] : INITIAL_MRU.slice();
+        s.mru = name === "single" ? ["t-mru"] : initialMru.slice();
         if (name === "single") {
           s.threads = s.threads.filter(function (t) {
             return t.id === "t-mru";
@@ -370,6 +419,10 @@
         }
         s.activeId = s.mru[0];
         s.collapsed = name === "collapsed";
+        if (listPrefKey && extra.listCollapsed !== undefined) {
+          s.listCollapsed = !!extra.listCollapsed;
+          writeListPref(listPrefKey, s.listCollapsed);
+        }
         s.note = name === "single" ? "Only one thread in the recent list: Ctrl+Tab does nothing." : null;
         s.instant = true;
         s.justOpened = false;
@@ -408,6 +461,12 @@
         return;
       }
       if (s.phase === "idle") return;
+      if (store.hasListToggle && e.code === "KeyL" && (e.ctrlKey || e.altKey) && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) store.toggleList();
+        return;
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         store.cancel();

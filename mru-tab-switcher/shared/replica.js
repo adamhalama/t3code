@@ -52,6 +52,10 @@
       '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
     "chevron-right": '<path d="m9 18 6-6-6-6"/>',
     "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "chevrons-down-up": '<path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/>',
+    "chevrons-up-down": '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
     terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
     "corner-down-left": '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
@@ -454,7 +458,13 @@
     { id: "idle", label: "Reset" },
   ];
 
+  function applyPresetFor(variant, store, id) {
+    if (variant.applyPreset) variant.applyPreset(store, id);
+    else store.applyPreset(id);
+  }
+
   function buildDemo(store, variant) {
+    var presets = variant.presets || PRESETS;
     var el = document.createElement("section");
     el.className = "mru-demo";
     el.setAttribute("aria-label", "Demo controls (not part of the design)");
@@ -474,13 +484,20 @@
       '<button type="button" data-demo="prev">Previous</button>' +
       '<button type="button" data-demo="release">Release</button>' +
       '<button type="button" data-demo="esc">Esc</button>' +
+      (store.hasListToggle
+        ? '<button type="button" data-demo="toggle-list">Toggle list</button>' +
+          '<button type="button" data-demo="forget">Forget saved list choice</button>'
+        : "") +
       "</div>" +
       '<div class="mru-demo-row">' +
-      PRESETS.map(function (p) {
+      presets.map(function (p) {
         return '<button type="button" class="preset" data-preset="' + p.id + '">' + esc(p.label) + "</button>";
       }).join("") +
       "</div>" +
-      '<div class="mru-demo-help">Keys: hold <b>Ctrl</b> or <b>Alt</b> + <b>`</b> (Shift+` = previous), release to open, Esc cancels. Real Ctrl+Tab works in Electron.</div>' +
+      '<div class="mru-demo-help">' +
+      (variant.demoHelp ||
+        "Keys: hold <b>Ctrl</b> or <b>Alt</b> + <b>`</b> (Shift+` = previous), release to open, Esc cancels. Real Ctrl+Tab works in Electron.") +
+      "</div>" +
       '<div class="mru-demo-readout" data-demo-readout></div>' +
       '<div class="mru-demo-note" data-demo-note hidden></div>' +
       "</div>";
@@ -504,7 +521,7 @@
       var a = b.getAttribute("data-demo");
       var preset = b.getAttribute("data-preset");
       if (preset) {
-        store.applyPreset(preset);
+        applyPresetFor(variant, store, preset);
         setUrlState(preset === "idle" ? null : preset);
         return;
       }
@@ -523,6 +540,13 @@
         else store.move(-1);
       } else if (a === "release") store.release();
       else if (a === "esc") store.cancel();
+      else if (a === "toggle-list") {
+        if (store.state.phase === "open") store.toggleList();
+        else {
+          store.state.note = "Toggle list works while the switcher is open (hold Ctrl first).";
+          store.refresh();
+        }
+      } else if (a === "forget") store.forgetListPref();
     });
     // Demo buttons must not steal the simulated modifier.
     el.addEventListener("mousedown", function (e) {
@@ -540,7 +564,15 @@
         s.activeId +
         "  last=" +
         s.lastEvent +
-        (s.phase !== "idle" && sel ? "  \u2192 " + sel.id : "");
+        (s.phase !== "idle" && sel ? "  \u2192 " + sel.id : "") +
+        (store.hasListToggle
+          ? "\nlist=" +
+            (s.listCollapsed ? "pill" : "expanded") +
+            "  saved(localStorage " +
+            store.listPrefKey +
+            ")=" +
+            (store.savedListPref() || "none")
+          : "");
       var note = el.querySelector("[data-demo-note]");
       note.hidden = !s.note;
       note.textContent = s.note || "";
@@ -561,7 +593,8 @@
   /* ---------- mount ---------- */
 
   function mount(variant) {
-    var store = M.createStore();
+    var store = M.createStore(variant.storeOptions);
+    var states = variant.states || M.STATES;
     var params = new URLSearchParams(location.search);
     var root = document.getElementById("t3-app");
     root.className = "t3-app v-" + variant.number;
@@ -622,7 +655,19 @@
 
     store.subscribe(render);
 
+    // The list/pill toggle acts on mousedown: the switcher lives only while Ctrl
+    // is held, and on macOS Ctrl+click becomes a context-menu click.
+    root.addEventListener("mousedown", function (e) {
+      var toggle = e.target.closest("[data-mru-toggle]");
+      if (!toggle) return;
+      e.preventDefault();
+      if (e.button === 0) store.toggleList();
+    });
+    root.addEventListener("contextmenu", function (e) {
+      if (store.state.phase !== "idle") e.preventDefault();
+    });
     root.addEventListener("click", function (e) {
+      if (e.target.closest("[data-mru-toggle]")) return;
       var commit = e.target.closest("[data-mru-commit]");
       if (commit) {
         store.commitId(commit.getAttribute("data-mru-commit"), "click-commit");
@@ -640,9 +685,15 @@
       var row = e.target.closest("[data-thread-id]");
       if (row) store.commitId(row.getAttribute("data-thread-id"), "sidebar-click");
     });
-    root.addEventListener("mouseover", function (e) {
+    // Hover selects only after the pointer really moves: a list that appears
+    // under a resting cursor must not steal the keyboard selection.
+    var lastPointer = null;
+    root.addEventListener("mousemove", function (e) {
+      var moved = lastPointer && (lastPointer.x !== e.screenX || lastPointer.y !== e.screenY);
+      lastPointer = { x: e.screenX, y: e.screenY };
+      if (!moved || store.state.phase !== "open") return;
       var h = e.target.closest("[data-mru-index]");
-      if (!h || store.state.phase !== "open") return;
+      if (!h) return;
       var i = Number(h.getAttribute("data-mru-index"));
       if (i !== store.state.selected) store.setSelected(i);
     });
@@ -650,7 +701,7 @@
     M.installKeyboard(store);
 
     var initial = params.get("state");
-    if (initial && M.STATES.indexOf(initial) !== -1) store.applyPreset(initial);
+    if (initial && states.indexOf(initial) !== -1) applyPresetFor(variant, store, initial);
     else render();
 
     global.mruStore = store;

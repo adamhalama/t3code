@@ -16,6 +16,8 @@ import {
 } from "@electron/asar";
 
 import { fromYaml } from "@t3tools/shared/schemaYaml";
+// fork: installer identity, URL scheme, and update feed of the fork (fork/README.md).
+import * as ForkIdentity from "@t3tools/shared/forkIdentity";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
@@ -62,7 +64,7 @@ import { Command, Flag } from "effect/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
-const DESKTOP_APP_ID = "com.t3tools.t3code";
+const DESKTOP_APP_ID = ForkIdentity.FORK_DESKTOP_APP_ID; // fork: was "com.t3tools.t3code"
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -2686,10 +2688,9 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     updateRepository: Config.String("T3CODE_DESKTOP_UPDATE_REPOSITORY").pipe(Config.option),
     githubRepository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
   });
+  // fork: always publish the fork feed; GITHUB_REPOSITORY is ignored so no build points at upstream.
   const rawRepo = (
-    Option.getOrUndefined(env.updateRepository)?.trim() ||
-    Option.getOrUndefined(env.githubRepository)?.trim() ||
-    ""
+    Option.getOrUndefined(env.updateRepository)?.trim() || ForkIdentity.FORK_UPDATE_REPOSITORY
   ).trim();
   if (!rawRepo) return undefined;
 
@@ -2701,7 +2702,8 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     owner,
     repo,
     releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    // fork: pin "latest" so a -fork.N version does not publish to a "fork" channel (fork.yml).
+    channel: updateChannel === "nightly" ? ("nightly" as const) : ("latest" as const),
   };
 });
 
@@ -2751,7 +2753,7 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 export function resolveDesktopProductName(version: string): string {
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
-    : (desktopPackageJson.productName ?? "T3 Code");
+    : ForkIdentity.FORK_PRODUCT_NAME; // fork: was desktopPackageJson.productName
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -2774,7 +2776,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    artifactName: "T3-Code-Fork-${version}-${arch}.${ext}", // fork: was T3-Code-
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2893,7 +2895,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.afterPack = path.join(repoRoot, "scripts/linux-after-pack.ts");
     buildConfig.linux = {
       target: target === "AppImage" ? [target, "deb"] : [target],
-      executableName: "t3code",
+      executableName: ForkIdentity.FORK_LINUX_EXECUTABLE_NAME, // fork: was "t3code"
       icon: "icons",
       category: "Development",
       synopsis: "Desktop GUI for coding agents",
@@ -2906,7 +2908,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ],
       desktop: {
         entry: {
-          StartupWMClass: "t3code",
+          StartupWMClass: ForkIdentity.FORK_LINUX_EXECUTABLE_NAME, // fork: was "t3code"
         },
       },
     };
@@ -3854,7 +3856,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    // fork: was "t3code"; NSIS uses it for the per-user install dir and the updater cache dir.
+    name: ForkIdentity.FORK_PACKAGE_NAME,
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,

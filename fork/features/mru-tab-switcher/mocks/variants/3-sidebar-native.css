@@ -1,0 +1,173 @@
+/* 3 · Sidebar-native: the sidebar itself becomes the switcher while Ctrl is held. */
+
+.v3-switching .t3-sidebar {
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 10%);
+}
+
+.t3-row.v3-dim {
+  opacity: 0.38;
+  background: transparent;
+}
+.t3-row.v3-dim.is-active {
+  background: var(--sidebar-row-selected);
+}
+.t3-row.v3-selected {
+  opacity: 1;
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+.t3-row.v3-selected::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+
+.v3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(245 245 245 / 7%);
+  color: var(--muted-foreground);
+  font: 500 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.v3-badge.is-selected {
+  background: var(--primary);
+  color: #fff;
+}
+
+.v3-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 4px 8px 8px;
+  padding: 0 4px 0 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  flex: none;
+}
+.v3-top-icon {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, var(--primary) 60%, white);
+}
+.v3-top-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+.v3-top-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.v3-top-sep {
+  margin-left: 2px;
+}
+.v3-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.v3-slot .t3-status-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Collapsed sidebar: a slim temporary panel slides in from the left. */
+.v3-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+}
+.v3-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(320px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  border-right: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 24px 0 64px -24px rgb(0 0 0 / 90%);
+}
+.v-3 .mru-layer.is-entering .v3-panel {
+  animation: v3-slide 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes v3-slide {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+.v3-panel-head {
+  display: flex;
+  align-items: center;
+  height: var(--topbar-height);
+  padding: 0 16px;
+  flex: none;
+}
+.v3-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.v3-panel-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.v3-panel-row.is-selected {
+  opacity: 1;
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 70%, transparent);
+}
+.v3-panel-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.v3-panel-title,
+.v3-panel-project {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v3-panel-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.v3-panel-project {
+  font-size: 12px;
+  color: var(--secondary-label);
+}
+.v3-panel-row .t3-time {
+  font-size: 12px;
+}

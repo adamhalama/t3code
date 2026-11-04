@@ -1,0 +1,104 @@
+/* Demo controls: developer tooling, intentionally NOT styled like T3 Code. */
+.mru-demo,
+.mru-demo * {
+  all: revert;
+  box-sizing: border-box;
+}
+.mru-demo {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2147483000;
+  width: min(460px, calc(100vw - 24px));
+  padding: 6px 8px 8px;
+  border: 1px dashed #a8a29e;
+  border-radius: 4px;
+  background: #fafaf9;
+  color: #1c1917;
+  font: 11px/1.35 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 35%);
+}
+.mru-demo.is-folded {
+  width: auto;
+}
+.mru-demo.is-folded .mru-demo-body {
+  display: none;
+}
+.mru-demo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mru-demo-tag {
+  padding: 1px 4px;
+  background: #facc15;
+  color: #1c1917;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.mru-demo-title {
+  flex: 1;
+  color: #57534e;
+  white-space: nowrap;
+}
+.mru-demo-body {
+  margin-top: 6px;
+}
+.mru-demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.mru-demo button {
+  margin: 0;
+  padding: 2px 6px;
+  border: 1px solid #a8a29e;
+  border-radius: 2px;
+  background: #e7e5e4;
+  color: #1c1917;
+  font: inherit;
+  cursor: pointer;
+}
+.mru-demo button:hover {
+  background: #d6d3d1;
+}
+.mru-demo button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.mru-demo button.preset {
+  background: #fef9c3;
+  border-color: #ca8a04;
+}
+.mru-demo button.preset:hover {
+  background: #fde68a;
+}
+.mru-demo .mru-demo-fold {
+  padding: 0 6px;
+  background: transparent;
+}
+.mru-demo-help {
+  margin: 2px 0 4px;
+  color: #57534e;
+}
+.mru-demo-help b {
+  font-weight: 700;
+  color: #1c1917;
+}
+.mru-demo-readout {
+  padding: 3px 5px;
+  background: #1c1917;
+  color: #a3e635;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.mru-demo-note {
+  margin-top: 4px;
+  padding: 3px 5px;
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+.mru-demo-note[hidden] {
+  display: none;
+}

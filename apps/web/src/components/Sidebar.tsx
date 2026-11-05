@@ -221,6 +221,11 @@ import {
   restrictBelowSidebarLabel,
 } from "./Sidebar.drag";
 import { SidebarPointerSensor } from "./Sidebar.pointer";
+// fork: Ctrl+Tab recent thread switcher
+import {
+  useRecentSwitcherRevealKey,
+  withRecentSwitcherReveal,
+} from "../fork/recentThreads/recentThreadsStore";
 import { createSidebarListMotion } from "./Sidebar.motion";
 import {
   pickSnoozePreset,
@@ -527,15 +532,40 @@ function useSidebarThreads(input: {
     }
     return visible.length === settledThreads.length ? settledThreads : visible;
   })();
-  const renderedSettledThreads = settledShelfExpanded
-    ? visibleSettledThreads
-    : routeThreadOnly(visibleSettledThreads, routeRowThreadKey);
-  const visibleSnoozedThreads = snoozedShelfExpanded
-    ? snoozedThreads
-    : routeThreadOnly(snoozedThreads, routeRowThreadKey);
-  const visibleWorkingThreads = workingShelfExpanded
-    ? workingThreads
-    : routeThreadOnly(workingThreads, routeRowThreadKey);
+  // fork: the Ctrl+Tab switcher shows its selection inside closed shelves and folders
+  const switcherRevealKey = useRecentSwitcherRevealKey({
+    shelves: [
+      { threads: settledThreads, shown: settledShelfExpanded ? visibleSettledThreads : [] },
+      { threads: snoozedThreads, shown: snoozedShelfExpanded ? snoozedThreads : [] },
+      { threads: workingThreads, shown: workingShelfExpanded ? workingThreads : [] },
+    ],
+    folders:
+      folderGroups === null
+        ? null
+        : {
+            groups: folderGroups,
+            threads: activeThreads,
+            isCollapsed: (group) =>
+              !resolveProjectExpanded(projectExpandedById, sidebarFolderExpansionKeys(group)),
+          },
+  });
+  const renderedSettledThreads = withRecentSwitcherReveal(
+    settledShelfExpanded
+      ? visibleSettledThreads
+      : routeThreadOnly(visibleSettledThreads, routeRowThreadKey),
+    settledThreads,
+    switcherRevealKey,
+  );
+  const visibleSnoozedThreads = withRecentSwitcherReveal(
+    snoozedShelfExpanded ? snoozedThreads : routeThreadOnly(snoozedThreads, routeRowThreadKey),
+    snoozedThreads,
+    switcherRevealKey,
+  );
+  const visibleWorkingThreads = withRecentSwitcherReveal(
+    workingShelfExpanded ? workingThreads : routeThreadOnly(workingThreads, routeRowThreadKey),
+    workingThreads,
+    switcherRevealKey,
+  );
   const projectFolders =
     folderGroups === null
       ? null
@@ -549,10 +579,18 @@ function useSidebarThreads(input: {
             collapsed,
             // A closed folder still shows the open thread, and hints at the rest.
             threads: collapsed
-              ? routeThreadOnly(folder.threads, routeRowThreadKey)
+              ? withRecentSwitcherReveal(
+                  routeThreadOnly(folder.threads, routeRowThreadKey),
+                  folder.threads,
+                  switcherRevealKey,
+                )
               : folder.threads,
             hiddenThreads: collapsed
-              ? folder.threads.filter((thread) => threadShellKey(thread) !== routeRowThreadKey)
+              ? folder.threads.filter(
+                  (thread) =>
+                    threadShellKey(thread) !== routeRowThreadKey &&
+                    threadShellKey(thread) !== switcherRevealKey,
+                )
               : EMPTY_THREADS,
           };
         });

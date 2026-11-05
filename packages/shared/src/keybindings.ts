@@ -219,6 +219,9 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+shift+s", command: "thread.settle", when: "!terminalFocus" },
   { key: "mod+shift+p", command: "thread.pin", when: "!terminalFocus" },
   { key: "mod+z", command: "thread.undo", when: "!terminalFocus && !editableFocus" },
+  // fork: Ctrl+Tab recent thread switcher; ctrl on every platform, since macOS keeps Cmd+Tab.
+  { key: "ctrl+tab", command: "thread.recent.next" },
+  { key: "ctrl+shift+tab", command: "thread.recent.previous" },
   ...THREAD_JUMP_KEYBINDING_COMMANDS.map((command, index) => ({
     key: `mod+${index + 1}`,
     command,

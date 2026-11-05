@@ -1,6 +1,6 @@
 # Recent thread switcher (Ctrl+Tab)
 
-Status: design under review. See `mocks/` for the candidate designs.
+Status: design chosen (C4, sidebar-header popover). See `DESIGN.md`; candidate designs are in `mocks/` and `mocks/combined/`.
 
 ## Goal
 
@@ -16,6 +16,8 @@ Switch between recently used threads the way VS Code switches between recent edi
   - Esc closes the picker without switching.
   - Clicking a row opens that thread.
 - The picker appears only if Ctrl is still held after a short delay (about 150 ms), so a quick tap never flashes it.
+- While the switcher is open, the target thread is also highlighted in the sidebar (see `DESIGN.md`).
+- Ctrl+L, or clicking the header chip, collapses or expands the list. The choice is remembered.
 - Each row shows the thread title and its project. It also shows thread status where T3 already shows it in the sidebar: running, waiting for approval, unread, error.
 - With only one thread in the list, Ctrl+Tab does nothing.
 - Threads that were deleted or archived are left out of the list.

@@ -51,3 +51,8 @@ Upstream files touched, from `git diff --numstat fork/main -- ':!fork' ':!apps/w
 | `docs/user/keybindings.md`                                      |  17 |   0 | User docs and the browser tab limitation                                         |
 
 Total: 12 files, +135 / -16. The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.
+
+## Known limitations
+
+- Browsers keep Ctrl+Tab for their own tabs, so the default binding works only in the desktop app. Rebind the commands to use the switcher in a browser tab.
+- Inside the embedded preview, the switcher learns which modifier to watch from the first effective binding of the command, because the preview forwards only the command name. If the same command is bound twice with different modifiers (for example `ctrl+tab` and `alt+q`), holding the other chord from inside the preview commits on the first key up. Fixing it means forwarding the pressed modifiers from `apps/desktop/src/preview/Manager.ts` and the preview frame.

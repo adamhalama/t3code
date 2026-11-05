@@ -251,6 +251,23 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
       }).pipe(Effect.provide(layerKeybindings())),
   );
 
+  // fork: Ctrl+Tab recent thread switcher
+  it.effect("backfills the recent thread switcher defaults into an existing config", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [
+        { key: "mod+shift+y", command: "terminal.toggle" },
+      ]);
+
+      const keybindings = yield* Keybindings.Keybindings;
+      yield* keybindings.syncDefaultKeybindingsOnStartup;
+
+      const persisted = yield* readKeybindingsConfig(keybindingsConfigPath);
+      assert.deepInclude(persisted, { key: "ctrl+tab", command: "thread.recent.next" });
+      assert.deepInclude(persisted, { key: "ctrl+shift+tab", command: "thread.recent.previous" });
+    }).pipe(Effect.provide(layerKeybindings())),
+  );
+
   it.effect("adds a late default to an existing command once", () =>
     Effect.gen(function* () {
       const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;

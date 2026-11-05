@@ -44,6 +44,9 @@ const THREAD_KEYBINDING_COMMANDS = [
   "thread.settle",
   "thread.pin",
   "thread.undo",
+  // fork: Ctrl+Tab recent thread switcher
+  "thread.recent.next",
+  "thread.recent.previous",
   ...THREAD_JUMP_KEYBINDING_COMMANDS,
 ] as const;
 

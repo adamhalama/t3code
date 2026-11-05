@@ -1,8 +1,8 @@
 # adamhalama/t3code fork
 
 A personal fork of [pingdotgg/t3code](https://github.com/pingdotgg/t3code). It installs next to
-official T3 Code, updates itself only from this repository's releases, and follows each upstream
-stable release automatically.
+official T3 Code on Windows and macOS, updates only from this repository's releases, and follows
+each upstream stable release automatically.
 
 Everything that describes the fork lives in this `fork/` folder: this overview,
 [UPDATE.md](UPDATE.md) (runbook for syncing with upstream), and [FEATURES.md](FEATURES.md) (fork
@@ -36,27 +36,34 @@ Releases are `<upstream>-fork.<n>`, tagged `v<upstream>-fork.<n>`, e.g. `v0.1.7-
 Every identity value comes from one file,
 [`packages/shared/src/forkIdentity.ts`](../packages/shared/src/forkIdentity.ts).
 
-| What                                      | Upstream                               | Fork                                               |
-| ----------------------------------------- | -------------------------------------- | -------------------------------------------------- |
-| Product / Start menu / uninstall entry    | `T3 Code`                              | `T3 Code (Fork)`                                   |
-| appId (NSIS GUID, uninstall registry key) | `com.t3tools.t3code`                   | `com.adamhalama.t3code.fork`                       |
-| AppUserModelId (taskbar, notifications)   | `com.t3tools.t3code(.dev)`             | `com.adamhalama.t3code.fork(.dev)`                 |
-| Per-user install dir                      | `%LOCALAPPDATA%\Programs\t3code`       | `%LOCALAPPDATA%\Programs\t3code-fork`              |
-| Updater cache                             | `%LOCALAPPDATA%\t3code-updater`        | `%LOCALAPPDATA%\t3code-fork-updater`               |
-| userData (single-instance lock, profile)  | `t3code-v2` / `t3code-dev`             | `t3code-fork` / `t3code-fork-dev`                  |
-| T3 home (host and inside WSL)             | `~/.t3`                                | `~/.t3-fork` (`T3CODE_HOME` still overrides)       |
-| WSL runtime cache                         | `$HOME/.t3/wsl-runtime`                | `$HOME/.t3-fork/wsl-runtime`                       |
-| URL scheme / renderer origin              | `t3code://`, `t3code-dev://`           | same as upstream (shared, see below)               |
-| Installer file                            | `T3-Code-<ver>-x64.exe`                | `T3-Code-Fork-<ver>-x64.exe`                       |
-| Linux executable / desktop entry          | `t3code`, `com.t3tools.T3Code.desktop` | `t3code-fork`, `com.adamhalama.T3CodeFork.desktop` |
-| Update feed                               | pingdotgg/t3code releases              | adamhalama/t3code releases only                    |
+| What                                      | Upstream                                  | Fork                                               |
+| ----------------------------------------- | ----------------------------------------- | -------------------------------------------------- |
+| Product / Start menu / uninstall entry    | `T3 Code`                                 | `T3 Code (Fork)`                                   |
+| appId (NSIS GUID, uninstall registry key) | `com.t3tools.t3code`                      | `com.adamhalama.t3code.fork`                       |
+| macOS bundle id (`CFBundleIdentifier`)    | `com.t3tools.t3code`                      | `com.adamhalama.t3code.fork`                       |
+| macOS app                                 | `/Applications/T3 Code (Beta).app`        | `/Applications/T3 Code (Fork).app`                 |
+| AppUserModelId (taskbar, notifications)   | `com.t3tools.t3code(.dev)`                | `com.adamhalama.t3code.fork(.dev)`                 |
+| Per-user install dir                      | `%LOCALAPPDATA%\Programs\t3code`          | `%LOCALAPPDATA%\Programs\t3code-fork`              |
+| Updater cache                             | `%LOCALAPPDATA%\t3code-updater`           | `%LOCALAPPDATA%\t3code-fork-updater`               |
+| userData (single-instance lock, profile)  | `t3code-v2` / `t3code-dev`                | `t3code-fork` / `t3code-fork-dev`                  |
+| macOS userData                            | `~/Library/Application Support/t3code-v2` | `~/Library/Application Support/t3code-fork`        |
+| T3 home (host and inside WSL)             | `~/.t3`                                   | `~/.t3-fork` (`T3CODE_HOME` still overrides)       |
+| WSL runtime cache                         | `$HOME/.t3/wsl-runtime`                   | `$HOME/.t3-fork/wsl-runtime`                       |
+| URL scheme / renderer origin              | `t3code://`, `t3code-dev://`              | same as upstream (shared, see below)               |
+| Installer file                            | `T3-Code-<ver>-x64.exe`                   | `T3-Code-Fork-<ver>-x64.exe`                       |
+| macOS disk image                          | `T3-Code-<ver>-<arch>.dmg`                | `T3-Code-Fork-<ver>-<arch>.dmg` (`arm64`, `x64`)   |
+| Linux executable / desktop entry          | `t3code`, `com.t3tools.T3Code.desktop`    | `t3code-fork`, `com.adamhalama.T3CodeFork.desktop` |
+| Update feed                               | pingdotgg/t3code releases                 | adamhalama/t3code releases only                    |
 
 Other collision points, checked:
 
 - The single-instance lock lives in userData, so it is separate.
 - The server port is chosen at startup (the first free port from 3773), so a running official app
   pushes the fork to the next port. The only named pipe (Codex token broker) has a random name.
-- Auto-launch is not registered by the desktop app.
+- Auto-launch (Windows startup, macOS Login Items) is not registered by the desktop app.
+- macOS keys privacy permissions (camera, screen recording, local network) and the safeStorage
+  keychain item (`<app name> Safe Storage`) to the bundle id and app name, so the fork asks for
+  its own.
 - The fork never imports upstream's profiles: no V1 local-storage import, and no
   `<appData>/t3code/Local State` fallback.
 - The `t3code://` scheme is shared. It is the renderer origin, which T3 Connect's Clerk instance
@@ -71,28 +78,66 @@ Unchanged on purpose:
 - `installer.nsh` process names: they only affect messages, and the product-name fallback covers
   the fork.
 - The `t3code` / `t3code-dev` schemes, including hosted and mobile pairing links (`t3code://pair`).
-- The `t3` CLI service name and launchd label: these belong to the CLI, not the desktop app.
+- The `t3` CLI service name and launchd label (`com.t3tools.t3code.service`): these belong to the
+  CLI, not the desktop app. Do not run `t3 service install` through the fork's `t3` while the
+  official CLI service is installed; both use the same label.
+- The `t3` command that Settings can add to PATH. Each app keeps its own launcher
+  (`~/.t3-fork/bin/t3` for the fork), but the command is `t3` for both, so on macOS and Linux the
+  app that installed it last owns the `t3` link, and on Windows the first PATH entry wins.
 
 ## Updates
 
-The in-app checker, download, and "restart to update" flow are upstream's, unchanged, pointed at
-this repository:
+On Windows the in-app checker, download, and "restart to update" flow are upstream's, unchanged,
+pointed at this repository. macOS updates are manual (below).
 
 - `app-update.yml` in the build is `provider: github, owner: adamhalama, repo: t3code,
   channel: latest`. `T3CODE_DESKTOP_UPDATE_REPOSITORY` can override the repository at build time.
   `GITHUB_REPOSITORY` is ignored.
-- The managed policy is shared with official T3 Code (`policy.json` under `T3Code`, or the
-  `HKLM\SOFTWARE\Policies\T3Tools\T3Code` key). Its `limits.updates` applies to the fork too, and
+- The managed policy is shared with official T3 Code (`policy.json` under `T3Code`, the
+  `HKLM\SOFTWARE\Policies\T3Tools\T3Code` key, or the macOS
+  `/Library/Managed Preferences/com.t3tools.t3code.plist` profile). Its `limits.updates` applies to the fork too, and
   its `feedUrl` replaces the fork feed, so a policy written for the official app points the fork at
   that mirror. Remove `feedUrl` from the policy on machines that run the fork.
 - electron-updater on `latest` reads GitHub's `releases/latest`, so fork releases are published,
-  not prereleases, and marked latest. It downloads `latest.yml` and the installer named there.
+  not prereleases, and marked latest. It downloads `latest.yml` (Windows) and the installer named
+  there. Releases also carry `latest-mac.yml` listing both Mac zips, so signed Mac builds could
+  update without a pipeline change.
 - Nightly: none. The Stable/Nightly track picker in Settings is hidden
   (`FORK_HAS_NIGHTLY_UPDATES = false`).
 - Unsigned: builds carry no `publisherName`, so the NSIS updater skips Authenticode verification
   and installs unsigned updates. `scripts/fork-desktop-build-config.test.ts` asserts this. Windows
   SmartScreen warns on the first manual install ("Windows protected your PC" → More info → Run
   anyway). Updates installed by the app are not prompted.
+- macOS: manual. Squirrel.Mac, which installs Mac updates, accepts an update only if its code
+  signature satisfies the running app's designated requirement. The fork's Mac builds have no
+  Developer ID signature (`FORK_MAC_BUILDS_SIGNED = false` in `forkIdentity.ts`), so every in-app
+  install would fail after the download. The updater is therefore off on macOS and never polls;
+  the update controls and T3 Code (Fork) > Check for Updates… say the build cannot update itself
+  and name the `releases/latest` page. To update, install the new DMG over the old app (see
+  below). Mock updates
+  (`T3CODE_DESKTOP_MOCK_UPDATES`) still run the flow for development. With Apple signing secrets
+  set, flip the constant and the upstream flow applies unchanged.
+
+## Installing on macOS
+
+1. From the [latest release](https://github.com/adamhalama/t3code/releases/latest), download
+   `T3-Code-Fork-<version>-arm64.dmg` for Apple Silicon (M1 and later) or
+   `T3-Code-Fork-<version>-x64.dmg` for an Intel Mac. Apple menu > About This Mac shows which.
+2. Open the DMG and drag `T3 Code (Fork)` to Applications. To update, quit the app and do the
+   same; Finder asks to replace the old copy. Your data stays in `~/.t3-fork` and
+   `~/Library/Application Support/t3code-fork`.
+3. The app is unsigned, so Gatekeeper blocks the first launch. Open it once, dismiss the warning,
+   then System Settings > Privacy & Security > "T3 Code (Fork)" was blocked > Open Anyway, and
+   confirm. If macOS instead says the app "is damaged", or to skip the dialog, run:
+
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/T3 Code (Fork).app"
+   ```
+
+   Repeat after each manual update.
+
+It runs side by side with official T3 Code: separate bundle id, userData, and T3 home
+(`~/.t3-fork`). See [Identity](#identity) for what is still shared.
 
 ## Pipelines
 
@@ -111,12 +156,16 @@ pull requests into `fork/main` (build only), `workflow_dispatch`, and `workflow_
    `.env.example`.
 3. `desktop` is a matrix over upstream's `release-desktop.yml`. Linux x64 is always built,
    because its CLI archive is the WSL runtime that the Windows installer embeds. Windows x64 is
-   cross-built on Linux and its packaged natives are verified on `windows-2025`. No secrets are
-   passed, so nothing is signed.
-4. `assemble` collects the platforms in `PUBLISHED_PLATFORMS` (currently `win`), renames the
-   manifest to `latest.yml`, and checks the version, installer, and blockmap. It uploads them as
-   the `t3code-fork-<version>` artifact and, when publishing, runs
-   `gh release create v<version> --latest`.
+   cross-built on Linux and its packaged natives are verified on `windows-2025`. macOS arm64 and
+   x64 build on GitHub's Apple Silicon `macos-26` runner (x64 under Rosetta, as upstream does),
+   each as a DMG plus the zip the updater feed lists; arm64 also opens the packaged app
+   (launch check). No secrets are passed, so nothing is signed: the reusable workflow logs
+   "macOS signing disabled" and skips notarization.
+4. `assemble` collects the platforms in `PUBLISHED_PLATFORMS` (`win mac`), renames the Windows
+   manifest to `latest.yml`, merges the two Mac manifests into `latest-mac.yml` with
+   `scripts/merge-update-manifests.ts` (as `release.yml` does), and checks versions, installers,
+   and blockmaps. It uploads them as the `t3code-fork-<version>` artifact and, when publishing,
+   runs `gh release create v<version> --latest`.
 
 To add a platform, add a matrix entry, add it to `PUBLISHED_PLATFORMS`, and (for a second Windows
 arch) merge the manifests with `scripts/merge-update-manifests.ts` as `release.yml` does.
@@ -162,9 +211,10 @@ Upstream files the fork changes. Every hunk is marked with a `fork:` comment; al
 | `apps/desktop/src/app/DesktopUserData.ts`                                        | +6 −5   | userData names, no upstream `Local State` fallback                                            |
 | `apps/desktop/src/backend/DesktopBackendConfiguration.ts`                        | +3      | WSL server home `~/.t3-fork`                                                                  |
 | `apps/desktop/src/wsl/DesktopWslEnvironment.ts`                                  | +7 −3   | WSL runtime cache under `~/.t3-fork`                                                          |
+| `apps/desktop/src/updates/DesktopUpdates.ts`                                     | +3 −1   | macOS updater off with a manual-update reason                                                 |
 | `AGENTS.md`                                                                      | +6      | "Fork" section                                                                                |
-| Tests (7 files, `apps/desktop/src/**`, `scripts/build-desktop-artifact.test.ts`) | small   | expected values follow `forkIdentity.ts`                                                      |
+| Tests (8 files, `apps/desktop/src/**`, `scripts/build-desktop-artifact.test.ts`) | small   | expected values follow `forkIdentity.ts`; managed-feed update tests run as Windows            |
 
 Fork-owned files (no upstream conflicts possible): `fork/**`, `.github/workflows/fork-*.yml`,
 `scripts/fork-*`, `packages/shared/src/forkIdentity*.ts`,
-`apps/desktop/src/app/DesktopUserData.fork.test.ts`.
+`apps/desktop/src/**/*.fork.test.ts`.

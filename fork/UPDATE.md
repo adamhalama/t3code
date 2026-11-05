@@ -42,8 +42,9 @@ git commit -am "chore(fork): sync to upstream v$new [skip ci]"
 ```
 
 Common hot spots: `scripts/build-desktop-artifact.ts` (build config),
-`apps/desktop/src/app/DesktopUserData.ts`, `apps/desktop/src/wsl/DesktopWslEnvironment.ts`, and
-the desktop tests that assert identity values. Check upstream for new identity strings
+`apps/desktop/src/app/DesktopUserData.ts`, `apps/desktop/src/wsl/DesktopWslEnvironment.ts`,
+`apps/desktop/src/updates/DesktopUpdates.ts` (macOS manual updates), and the desktop tests that
+assert identity values. Check upstream for new identity strings
 (`t3code://`, `com.t3tools.t3code`, `~/.t3`, `t3code-v2`) and route them through
 `forkIdentity.ts`:
 
@@ -77,4 +78,5 @@ scripts/fork-disable-upstream-workflows.sh adamhalama/t3code
 
 The push carries `[skip ci]`, so the release starts only from the dispatch. Close the
 `fork-sync-failed` issue with a link to the release run. Check that the release
-`vX.Y.Z-fork.1` is marked latest and has `latest.yml`, the `.exe`, and its `.blockmap`.
+`vX.Y.Z-fork.1` is marked latest and has `latest.yml`, the `.exe`, `latest-mac.yml` (listing the
+`arm64` and `x64` zips), both `.dmg` and `.zip` files, and a `.blockmap` for each installer.

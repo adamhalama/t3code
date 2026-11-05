@@ -2,6 +2,7 @@ import * as NodeOS from "node:os";
 
 import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
 import { currentDesktopBootstrapToken } from "@t3tools/shared/desktopBootstrapToken";
+import { FORK_T3_HOME_DIR_NAME } from "@t3tools/shared/forkIdentity"; // fork
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
@@ -570,6 +571,8 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
     noBrowser: true,
     port: input.port,
     // Omit t3Home to keep the Linux backend from sharing the primary's Windows SQLite file.
+    // fork: a home-relative t3Home keeps the WSL server in the distro's ~/.t3-fork, not upstream's ~/.t3.
+    t3Home: `~/${FORK_T3_HOME_DIR_NAME}`,
     host: wslBindHost,
     desktopBootstrapToken: input.bootstrapToken,
     desktopBootstrapSecret: input.bootstrapSecret,

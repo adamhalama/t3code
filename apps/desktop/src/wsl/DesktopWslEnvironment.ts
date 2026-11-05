@@ -11,6 +11,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 import { buildRemoteNodeEnvScript } from "@t3tools/ssh/tunnel";
 import { satisfiesSemverRange } from "@t3tools/shared/semver";
+// fork: keep the fork's WSL runtime cache out of upstream's ~/.t3, whose pruning would delete it.
+import { FORK_T3_HOME_DIR_NAME } from "@t3tools/shared/forkIdentity";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopManagedPolicy from "../app/DesktopManagedPolicy.ts";
@@ -254,6 +256,8 @@ const WSL_RUNTIME_READY_MARKER = ".t3code-wsl-runtime-ready";
 const WSL_RUNTIME_SELECTED_MARKER = ".t3code-wsl-runtime-selected";
 const WSL_RUNTIME_SELECTION_GRACE_MINUTES = 5;
 
+const WSL_RUNTIME_PARENT = `$HOME/${FORK_T3_HOME_DIR_NAME}/wsl-runtime`; // fork: was $HOME/.t3/wsl-runtime
+
 const sanitizeWslRuntimeId = (value: string): string => value.replace(/[^A-Za-z0-9._-]/g, "_");
 
 export const buildWslRuntimeInstallScript = (
@@ -264,7 +268,7 @@ export const buildWslRuntimeInstallScript = (
   const safeRuntimeId = sanitizeWslRuntimeId(runtimeId);
   return [
     "set -eu",
-    'runtime_parent="$HOME/.t3/wsl-runtime"',
+    `runtime_parent="${WSL_RUNTIME_PARENT}"`, // fork
     `runtime_root="$runtime_parent/${safeRuntimeId}"`,
     `ready_marker="$runtime_root/${WSL_RUNTIME_READY_MARKER}"`,
     "runtime_entry_runs() {",
@@ -353,7 +357,7 @@ export const buildWslRuntimePruneScript = (runtimeId: string): string => {
   const safeRuntimeId = sanitizeWslRuntimeId(runtimeId);
   return [
     "set -eu",
-    'runtime_parent="$HOME/.t3/wsl-runtime"',
+    `runtime_parent="${WSL_RUNTIME_PARENT}"`, // fork
     `current_runtime="$runtime_parent/${safeRuntimeId}"`,
     '[ -d "$runtime_parent" ] || exit 0',
     // Serialize pruning so backends cannot select and delete different previous caches.
@@ -404,7 +408,7 @@ export const buildWslRuntimeInvalidateScript = (runtimeId: string): string => {
   const safeRuntimeId = sanitizeWslRuntimeId(runtimeId);
   return [
     "set -eu",
-    `rm -f "$HOME/.t3/wsl-runtime/${safeRuntimeId}/${WSL_RUNTIME_READY_MARKER}"`,
+    `rm -f "${WSL_RUNTIME_PARENT}/${safeRuntimeId}/${WSL_RUNTIME_READY_MARKER}"`, // fork
   ].join("\n");
 };
 

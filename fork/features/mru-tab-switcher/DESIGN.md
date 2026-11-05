@@ -20,4 +20,34 @@ Live mock: https://adamhalama.github.io/t3code/mru-tab-switcher/combined/4.html
 
 ## Code layout
 
-Fork-owned code lives in new files to keep the upstream patch small. Every edit to an upstream file is marked with a `fork:` comment. See the "Patch surface" section of the PR or `git diff fork/main -- ':!fork' ':!apps/web/src/fork'` for the exact list.
+Fork-owned code lives in new files to keep the upstream patch small. Every edit to an upstream file is marked with a `fork:` comment.
+
+New files, all in `apps/web/src/fork/recentThreads/`:
+
+- `recentThreadsMru.ts`: the recent list (touch, prune, display order) and its local storage.
+- `recentSwitcherMachine.ts`: the idle, pending and open state machine (tap, hold, cycle, commit, cancel, fold).
+- `recentThreadsStore.ts`: the zustand store, the single machine instance, and the narrow row and reveal selectors.
+- `RecentThreadSwitcher.tsx`: route tracking, window key, pointer and focus listeners, desktop menu actions, and the slide-in panel.
+- `RecentThreadsChip.tsx`, `RecentThreadsList.tsx`, `RecentThreadRowBadge.tsx`: the chip, popover, list rows and sidebar badge.
+- Tests: `recentThreadsMru.test.ts`, `recentSwitcherMachine.test.ts`, `recentThreadsStore.test.ts`.
+
+## Patch surface
+
+Upstream files touched, from `git diff --numstat fork/main -- ':!fork' ':!apps/web/src/fork'`:
+
+| File                                                            |   + |   - | Why                                                                              |
+| --------------------------------------------------------------- | --: | --: | -------------------------------------------------------------------------------- |
+| `packages/contracts/src/keybindings.ts`                         |   3 |   0 | `thread.recent.next` and `thread.recent.previous` commands                       |
+| `packages/shared/src/keybindings.ts`                            |   3 |   0 | `ctrl+tab` and `ctrl+shift+tab` defaults                                         |
+| `apps/server/src/keybindings.test.ts`                           |  17 |   0 | Existing `keybindings.json` files gain the new defaults on startup               |
+| `apps/web/src/components/settings/KeybindingsSettings.logic.ts` |   3 |   0 | Settings labels                                                                  |
+| `apps/web/src/components/AppSidebarLayout.tsx`                  |   2 |   0 | Mounts the switcher                                                              |
+| `apps/web/src/components/Sidebar.tsx`                           |  49 |  11 | Reveals the selected thread in a closed shelf or project folder                  |
+| `apps/web/src/components/sidebar/SidebarThreadHeader.tsx`       |   4 |   1 | The chip over the Search row                                                     |
+| `apps/web/src/components/sidebar/SidebarThreadRow.tsx`          |  27 |   3 | Row highlight, dimming and number badge                                          |
+| `apps/web/src/components/ReopenClosedViewShortcut.tsx`          |   3 |   0 | Forwards the commands out of a focused preview                                   |
+| `apps/web/src/components/files/BrowserDocumentFrame.tsx`        |   3 |   0 | Forwards the commands out of an HTML render frame                                |
+| `apps/desktop/src/preview/Manager.ts`                           |   4 |   1 | Focuses the app when a preview forwards the commands, so Ctrl's release is heard |
+| `docs/user/keybindings.md`                                      |  17 |   0 | User docs and the browser tab limitation                                         |
+
+Total: 12 files, +135 / -16. The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.

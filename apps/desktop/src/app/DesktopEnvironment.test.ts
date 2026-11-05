@@ -1,3 +1,4 @@
+// fork: expectations follow packages/shared/src/forkIdentity.ts (fork userData, scheme, home, names).
 import * as NodePath from "@effect/platform-node/NodePath";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -68,8 +69,8 @@ describe("DesktopEnvironment", () => {
       );
       const production = yield* makeEnvironment();
 
-      assert.equal(development.stateDir, "/Users/alice/.t3/dev");
-      assert.equal(production.stateDir, "/Users/alice/.t3/userdata");
+      assert.equal(development.stateDir, "/Users/alice/.t3-fork/dev");
+      assert.equal(production.stateDir, "/Users/alice/.t3-fork/userdata");
     }),
   );
 });

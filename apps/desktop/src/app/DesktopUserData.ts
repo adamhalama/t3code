@@ -1,3 +1,5 @@
+// fork: separate userData (and so the single-instance lock) from upstream T3 Code.
+import { FORK_DESKTOP_USER_DATA } from "@t3tools/shared/forkIdentity";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -40,8 +42,8 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const names = input.isDevelopment
-      ? { current: "t3code-dev", legacy: "T3 Code (Dev)" }
-      : { current: "t3code-v2", legacy: "T3 Code (Alpha)" };
+      ? FORK_DESKTOP_USER_DATA.development // fork: was t3code-dev / T3 Code (Dev)
+      : FORK_DESKTOP_USER_DATA.production; // fork: was t3code-v2 / T3 Code (Alpha)
     const destinationPath = path.join(input.appDataDirectory, names.current);
     const legacyPath = path.join(input.appDataDirectory, names.legacy);
     const inspect = (resourcePath: string) =>
@@ -60,9 +62,8 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     const destinationState = path.join(destinationPath, "Local State");
     if (yield* inspect(destinationState)) return destinationPath;
     const legacyState = path.join(legacyPath, "Local State");
-    const sourceState = (yield* inspect(legacyState))
-      ? legacyState
-      : path.join(input.appDataDirectory, "t3code", "Local State");
+    // fork: never fall back to upstream's V1 profile (<appData>/t3code/Local State).
+    const sourceState = legacyState;
     if (!(yield* inspect(sourceState))) return destinationPath;
     // Windows safeStorage keys live here. Copy only these preferences, never locked databases.
     const state = yield* fs

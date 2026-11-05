@@ -210,3 +210,9 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
 ## Additional tips
 
 - Security is important, but should not be over-indexed on, especially for dev mode/maintainer-only features.
+
+## Fork
+
+This checkout is the adamhalama/t3code fork: `fork/main` is an upstream stable tag plus a few fork commits; see `fork/README.md`.
+Keep upstream edits minimal and marked `fork:`, with identity values only in `packages/shared/src/forkIdentity.ts`.
+Upstream syncs follow `fork/UPDATE.md`; fork features are listed in `fork/FEATURES.md`.

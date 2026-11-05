@@ -1479,7 +1479,10 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           if (
             forwarded.command === "workspace.focusNext" ||
             forwarded.command === "workspace.focusPrevious" ||
-            forwarded.command === "preview.focusUrl"
+            forwarded.command === "preview.focusUrl" ||
+            // fork: the Ctrl+Tab switcher must hear the modifier's release in the app
+            forwarded.command === "thread.recent.next" ||
+            forwarded.command === "thread.recent.previous"
           ) {
             // DOM focus in the renderer cannot by itself release the guest's native keyboard focus.
             host.focus();

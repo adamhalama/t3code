@@ -164,6 +164,16 @@ field gets its own undo back. Terminals always keep their native shortcut.
 `navigation.back` (`mod+[` by default) and `navigation.forward` (`mod+]`) move
 through the pages you have visited, like a browser's back and forward buttons.
 
+<!-- fork: recent thread switcher -->
+
+`thread.recent.next` (`ctrl+tab` by default, on every platform) and
+`thread.recent.previous` (`ctrl+shift+tab`) switch between recently opened
+threads. A quick tap opens the previous thread, so repeated taps toggle between
+the two most recent. Hold Ctrl to see the list: press Tab or Shift+Tab to move,
+release Ctrl to open the selected thread, or press Escape to stay. While the
+list is open, `ctrl+l` folds it into the sidebar chip and back. The list is
+kept per browser or desktop app and skips archived and deleted threads.
+
 `chat.new` may ask you to choose a project when there is more than one.
 `chat.newLocal` skips that chooser. Both use your
 [new-thread defaults](./thread-sidebar.md#start-a-thread). `chat.newWithoutProject`
@@ -182,6 +192,13 @@ A browser opens in a fresh session without its old page history. Incognito tabs
 can reopen until you reload or quit the app. This shortcut does not undo deleted work.
 Browsers also use it to reopen browser tabs; choose another binding in Settings
 if the browser takes it first.
+
+<!-- fork: recent thread switcher -->
+
+Browsers switch their own tabs with `ctrl+tab` and `ctrl+shift+tab` and do not
+pass those keys to the page. Use the recent thread switcher in the desktop app,
+or bind `thread.recent.next` and `thread.recent.previous` to another shortcut in
+**Settings → Keybindings**.
 
 Many defaults include `!terminalFocus` so they do not intercept terminal input.
 Keep that condition when remapping them if you want the same behavior.

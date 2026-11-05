@@ -38,6 +38,7 @@ import {
   usePanelNavigationSuppression,
 } from "../panelAnimations";
 import { BackgroundThreadAnnouncer } from "./BackgroundThreadAnnouncer";
+import { RecentThreadSwitcher } from "../fork/recentThreads/RecentThreadSwitcher"; // fork
 import { HistorySwipeNavigation } from "./HistorySwipeNavigation";
 import ThreadSidebar from "./Sidebar";
 import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
@@ -474,6 +475,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         </Sidebar>
         {children}
         <BackgroundThreadAnnouncer />
+        <RecentThreadSwitcher /> {/* fork: Ctrl+Tab recent thread switcher */}
         <SidebarControl />
         {isElectron ? <HistorySwipeNavigation /> : null}
       </SidebarProvider>

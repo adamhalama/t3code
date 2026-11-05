@@ -70,6 +70,9 @@ const PREVIEW_FORWARDED_COMMANDS = [
   "preview.zoomOut",
   "preview.resetZoom",
   "preview.find",
+  // fork: Ctrl+Tab recent thread switcher
+  "thread.recent.next",
+  "thread.recent.previous",
 ] as const;
 
 const isGlobalPullRequests = (ref: ScopedThreadRef) =>

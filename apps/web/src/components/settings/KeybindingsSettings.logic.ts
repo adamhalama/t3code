@@ -540,6 +540,9 @@ const LATE_COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
 };
 
 export function commandLabel(command: KeybindingCommand, resolve: MessageResolver = m): string {
+  // fork: Ctrl+Tab recent thread switcher; plain strings stay out of the GT catalogs (English)
+  if (command === "thread.recent.next") return resolve("Thread: Next Recent Thread");
+  if (command === "thread.recent.previous") return resolve("Thread: Previous Recent Thread");
   const label = COMMAND_LABELS[command];
   if (label) return resolve(label);
   const usageLabel = USAGE_COMMAND_LABELS[command as keyof typeof USAGE_COMMAND_LABELS];

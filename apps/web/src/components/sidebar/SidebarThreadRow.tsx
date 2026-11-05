@@ -142,6 +142,13 @@ import { useThreadHasUnsentDraft } from "../../composerDraftStore";
 import { ThreadDetailsIssueRows } from "../chat/ThreadDetailsIssueRows";
 import { IssueGlyph, issueStatePresentation } from "../issue/issuePresentation";
 import { useThreadIntentPrefetch } from "./useThreadIntentPrefetch";
+// fork: Ctrl+Tab recent thread switcher
+import { useRecentThreadRowState } from "../../fork/recentThreads/recentThreadsStore";
+import {
+  RecentThreadRowBadge,
+  recentThreadRowClassName,
+  recentThreadRowHasBadge,
+} from "../../fork/recentThreads/RecentThreadRowBadge";
 
 // The fields thread rows show. Provider status pushes refresh `checkedAt`,
 // status and auth on every provider; leaving those out keeps each
@@ -733,6 +740,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   } = props;
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const threadKey = scopedThreadKey(threadRef);
+  const recentSwitch = useRecentThreadRowState(threadKey); // fork: Ctrl+Tab switcher
   const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
   const canTriageThread = !useEnvironmentScopeDenied(
     thread.environmentId,
@@ -1032,7 +1040,18 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   // Closing here, not just masking, keeps the menu from reopening when the button returns.
   if (snoozeMenuOpenRaw && !showSnoozeButton) setSnoozeMenuOpen(false);
   const snoozeMenuOpen = snoozeMenuOpenRaw && showSnoozeButton;
-  const jumpHintLabel = snoozeMenuOpen ? null : props.jumpLabel;
+  // fork: while the Ctrl+Tab switcher is open its number badge takes the time slot
+  const jumpHintLabel = snoozeMenuOpen || recentSwitch !== null ? null : props.jumpLabel;
+  const recentBadge = (
+    <RecentThreadRowBadge
+      state={recentSwitch}
+      statusIcon={
+        topStatus ? (
+          <TopStatusIcon icon={topStatus.icon} className={cn("size-3.5", topStatus.className)} />
+        ) : null
+      }
+    />
+  );
   const handlePrClick = (event: ReactMouseEvent<HTMLElement>, targetUrl?: string) => {
     const url = targetUrl ?? pr?.url ?? currentLinkedPr?.url;
     if (!url) return;
@@ -1064,6 +1083,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     isFileDragOver && !props.isActive && !isSelected && "bg-sidebar-row-hover",
     props.sortable?.isDragging &&
       "bg-sidebar bg-linear-to-b from-sidebar-row-active to-sidebar-row-active text-sidebar-foreground opacity-100 shadow-lg",
+    recentThreadRowClassName(recentSwitch), // fork: Ctrl+Tab switcher highlight
   );
   const sortable = props.sortable;
   const sortableRootProps = sortable
@@ -1413,7 +1433,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 className={cn(
                   "relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end",
                   props.sweepAction !== null && "hidden",
-                  jumpHintLabel && JUMP_HINT_SLOT_CLASS_NAME,
+                  (jumpHintLabel || recentThreadRowHasBadge(recentSwitch)) && // fork
+                    JUMP_HINT_SLOT_CLASS_NAME,
                 )}
               >
                 <span
@@ -1539,6 +1560,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   </SharedTooltipTrigger>
                 )}
                 {jumpHintLabel ? <JumpHintBadge label={jumpHintLabel} /> : null}
+                {recentBadge}
               </span>
             )}
             {props.sweepAction !== null ? dragDestination : null}
@@ -1617,7 +1639,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 className={cn(
                   "group/sidebar-status-slot relative ml-auto flex h-5 min-w-8 shrink-0 items-stretch justify-end text-xs",
                   props.sweepAction !== null && "hidden",
-                  jumpHintLabel && JUMP_HINT_SLOT_CLASS_NAME,
+                  (jumpHintLabel || recentThreadRowHasBadge(recentSwitch)) && // fork
+                    JUMP_HINT_SLOT_CLASS_NAME,
                 )}
               >
                 <span
@@ -1749,6 +1772,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   </span>
                 ) : null}
                 {jumpHintLabel ? <JumpHintBadge label={jumpHintLabel} /> : null}
+                {recentBadge}
               </span>
             )}
             {props.sweepAction !== null ? dragDestination : null}

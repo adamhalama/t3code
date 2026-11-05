@@ -1,6 +1,6 @@
 # Recent thread switcher (Ctrl+Tab)
 
-Status: design chosen (C4, sidebar-header popover). See `DESIGN.md`; candidate designs are in `mocks/` and `mocks/combined/`.
+Status: design chosen (C4, sidebar-header popover). See `DESIGN.md`; all candidate designs are at https://adamhalama.github.io/t3code/mru-tab-switcher/ (source on the `gh-pages` branch).
 
 ## Goal
 

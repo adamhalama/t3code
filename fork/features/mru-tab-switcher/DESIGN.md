@@ -1,6 +1,6 @@
 # Recent thread switcher: design
 
-Chosen design: **C4, sidebar-header popover** (`mocks/combined/4.html`, files `mocks/combined/variants/4-header-popover.*`).
+Chosen design: **C4, sidebar-header popover**. The mocks live on the `gh-pages` branch (`mru-tab-switcher/combined/4.html`, files `mru-tab-switcher/combined/variants/4-header-popover.*`), not in the app source.
 Live mock: https://adamhalama.github.io/t3code/mru-tab-switcher/combined/4.html
 
 ## What the user sees while Ctrl is held

@@ -1,0 +1,166 @@
+name: Fork sync
+
+# fork: moves fork/main onto each new upstream stable release (fork/UPDATE.md).
+# scripts/fork-sync.ts does the work: rebase the fork commits onto the new
+# upstream tag, then install, typecheck, and test what the fork touches. Only a
+# green run pushes fork/main (--force-with-lease) and starts fork-release.yml.
+# A failed run pushes nothing and opens or updates a `fork-sync-failed` issue.
+#
+# Pushing rewrites .github/workflows, which GITHUB_TOKEN may not do, so the
+# push needs the FORK_SYNC_TOKEN secret: a fine-grained token for this
+# repository with Contents and Workflows read/write.
+
+on:
+  schedule:
+    # Every 6 hours, off the top of the hour.
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: "Sync to this upstream release (X.Y.Z) instead of the newest stable one"
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: "Rebase and check, but do not push or release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync with upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      issues: write
+      # Starts fork-release.yml and disables new upstream workflows.
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: fork/main
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN || github.token }}
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Configure git
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/pingdotgg/t3code.git
+
+      - name: Setup Vite+
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install: "false"
+
+      # The desktop typecheck and tests compile the Linux browser secret helper.
+      - name: Install desktop build libraries
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
+
+      - id: sync
+        name: Rebase onto upstream
+        shell: bash
+        env:
+          UPSTREAM_VERSION_INPUT: ${{ inputs.upstream_version }}
+          DRY_RUN: ${{ inputs.dry_run == true || secrets.FORK_SYNC_TOKEN == '' }}
+        run: |
+          set -euo pipefail
+          args=(--report "$RUNNER_TEMP/fork-sync-report.md")
+          if [[ -n "$UPSTREAM_VERSION_INPUT" ]]; then
+            args+=(--upstream-version "$UPSTREAM_VERSION_INPUT")
+          fi
+          if [[ "$DRY_RUN" == "true" ]]; then
+            if [[ "$HAS_SYNC_TOKEN" != "true" ]]; then
+              echo "::warning::FORK_SYNC_TOKEN is not set, so this run cannot push; running as a dry run."
+            fi
+            args+=(--dry-run)
+          fi
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          node scripts/fork-sync.ts "${args[@]}"
+
+      - name: Summarize
+        if: always()
+        shell: bash
+        env:
+          STATUS: ${{ steps.sync.outputs.status }}
+          FROM: ${{ steps.sync.outputs.previous_version }}
+          TO: ${{ steps.sync.outputs.upstream_version }}
+        run: |
+          {
+            echo "### Fork sync: ${STATUS:-failed}"
+            echo
+            echo "fork/main upstream: v${FROM:-?} -> newest upstream: v${TO:-?}"
+            if [[ -f "$RUNNER_TEMP/fork-sync-report.md" ]]; then
+              echo
+              cat "$RUNNER_TEMP/fork-sync-report.md"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update failure issue
+        if: failure() && steps.sync.outputs.status == 'failed'
+        shell: bash
+        env:
+          TO: ${{ steps.sync.outputs.upstream_version }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/fork-sync-report.md"
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .has_issues)" != "true" ]]; then
+            echo "::error::Issues are disabled on $GITHUB_REPOSITORY; the failure report is in this run's summary."
+            exit 0
+          fi
+          gh label create fork-sync-failed -R "$GITHUB_REPOSITORY" --color B60205 \
+            --description "Automatic upstream sync failed" --force
+          title="Fork sync to upstream v${TO:-unknown} failed"
+          existing="$(gh issue list -R "$GITHUB_REPOSITORY" --label fork-sync-failed --state open \
+            --search "in:title \"$title\"" --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" -R "$GITHUB_REPOSITORY" --body-file "$report"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --label fork-sync-failed --body-file "$report"
+          fi
+
+      - name: Close resolved failure issues
+        if: steps.sync.outputs.status == 'synced' && steps.sync.outputs.dry_run != 'true'
+        shell: bash
+        env:
+          TO: ${{ steps.sync.outputs.upstream_version }}
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .has_issues)" == "true" ]] || exit 0
+          for number in $(gh issue list -R "$GITHUB_REPOSITORY" --label fork-sync-failed --state open --json number --jq '.[].number'); do
+            gh issue close "$number" -R "$GITHUB_REPOSITORY" --comment "fork/main now builds on upstream v$TO ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          done
+
+      # Upstream may have added workflows; the fork only runs its own.
+      - name: Disable upstream workflows
+        if: steps.sync.outputs.status == 'synced' && steps.sync.outputs.dry_run != 'true'
+        shell: bash
+        run: bash scripts/fork-disable-upstream-workflows.sh "$GITHUB_REPOSITORY"
+
+      # Dispatched rather than called, so the release runs the workflow files
+      # of the commit it builds, not those of the pre-sync fork/main. The sync
+      # commit carries [skip ci], so the push itself starts no second release.
+      - name: Start fork release
+        if: steps.sync.outputs.status == 'synced' && steps.sync.outputs.dry_run != 'true'
+        shell: bash
+        run: |
+          gh workflow run fork-release.yml -R "$GITHUB_REPOSITORY" --ref fork/main -f publish=true
+          echo "Started fork-release.yml for upstream v${{ steps.sync.outputs.upstream_version }}." >> "$GITHUB_STEP_SUMMARY"

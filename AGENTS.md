@@ -155,3 +155,9 @@ Read the matching doc before changing code in that area; code review enforces th
 - No continuously repainting animations; they peg the GPU on high-refresh displays.
 - Security matters, but do not over-index on dev-mode or maintainer-only features. Read [SECURITY.md](SECURITY.md) before auditing or triaging reports.
 - If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.
+
+## Fork
+
+This checkout is the adamhalama/t3code fork: `fork/main` is an upstream stable tag plus a few fork commits; see `fork/README.md`.
+Keep upstream edits minimal and marked `fork:`, with identity values only in `packages/shared/src/forkIdentity.ts`.
+Upstream syncs follow `fork/UPDATE.md`; fork features are listed in `fork/FEATURES.md`.

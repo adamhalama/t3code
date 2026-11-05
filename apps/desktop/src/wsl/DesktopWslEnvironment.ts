@@ -14,6 +14,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { buildRemoteNodeEnvScript } from "@t3tools/ssh/tunnel";
 import { satisfiesSemverRange } from "@t3tools/shared/semver";
+// fork: keep the fork's WSL runtime cache out of upstream's ~/.t3, whose pruning would delete it.
+import { FORK_T3_HOME_DIR_NAME } from "@t3tools/shared/forkIdentity";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopManagedPolicy from "../app/DesktopManagedPolicy.ts";
@@ -273,7 +275,7 @@ const sanitizeWslRuntimeId = (value: string): string => value.replace(/[^A-Za-z0
 
 const runtimeParentAssignment = (t3Home: string | null): string =>
   t3Home === null
-    ? 'runtime_parent="$HOME/.t3/wsl-runtime"'
+    ? `runtime_parent="$HOME/${FORK_T3_HOME_DIR_NAME}/wsl-runtime"` // fork: was $HOME/.t3/wsl-runtime
     : `runtime_parent=${shellQuote(`${t3Home}/wsl-runtime`)}`;
 
 // A null archive path asks for a staging directory to copy the archive into, unless the cache is ready.

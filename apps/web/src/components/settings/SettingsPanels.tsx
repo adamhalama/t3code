@@ -32,6 +32,7 @@ import {
   managedUpdatesMessage,
 } from "@t3tools/client-runtime/contract-labels";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import { FORK_HAS_NIGHTLY_UPDATES } from "@t3tools/shared/forkIdentity"; // fork
 import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import { resolvePastedPath } from "@t3tools/shared/path";
 import * as Equal from "effect/Equal";
@@ -364,7 +365,8 @@ function AboutVersionSection() {
           </Tooltip>
         }
       />
-      {hasDesktopBridge ? (
+      {/* fork: the fork feed has no nightly builds, so the desktop track picker is hidden. */}
+      {hasDesktopBridge && FORK_HAS_NIGHTLY_UPDATES ? (
         <SettingsRow
           {...setting("update-track")}
           description={

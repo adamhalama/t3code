@@ -50,6 +50,9 @@ const PREVIEW_FORWARDED_COMMANDS = [
   "rightPanel.toggle",
   "rightPanel.toggleMaximized",
   "preview.focusUrl",
+  // fork: Ctrl+Tab recent thread switcher
+  "thread.recent.next",
+  "thread.recent.previous",
 ] as const;
 
 const isGlobalPullRequests = (ref: ScopedThreadRef) =>

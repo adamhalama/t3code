@@ -65,6 +65,9 @@ const HTML_RENDER_SHORTCUT_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   "navigation.forward",
   "thread.previous",
   "thread.next",
+  // fork: Ctrl+Tab recent thread switcher
+  "thread.recent.next",
+  "thread.recent.previous",
   ...THREAD_JUMP_KEYBINDING_COMMANDS,
   ...MODEL_PICKER_JUMP_KEYBINDING_COMMANDS,
 ]);

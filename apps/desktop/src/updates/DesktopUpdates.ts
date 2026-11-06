@@ -8,6 +8,8 @@ import {
   type DesktopUpdateState,
 } from "@t3tools/contracts";
 import { errorTag } from "@t3tools/shared/observability";
+// fork: unsigned macOS builds update by hand (fork/README.md#updates).
+import { forkManualUpdateReason } from "@t3tools/shared/forkIdentity";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -470,7 +472,7 @@ export const make = Effect.gen(function* () {
         isDebPackage,
         disabledByEnv: config.disableAutoUpdate,
         hasUpdateFeedConfig: hasFeedConfig,
-      }),
+      }) ?? (mockUpdates ? null : forkManualUpdateReason(environment.platform)), // fork
     );
   });
 

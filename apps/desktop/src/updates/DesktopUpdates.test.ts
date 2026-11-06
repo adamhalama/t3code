@@ -1447,6 +1447,7 @@ describe("DesktopUpdates under a managed policy", () => {
       // Any user can set the mock flag; it must not redirect a managed feed.
       env: { T3CODE_DESKTOP_MOCK_UPDATES: "true" },
       policy: managed({ feedUrl: "https://updates.example.com/t3code" }),
+      platform: "win32", // fork: macOS builds update by hand
     });
 
     return Effect.scoped(
@@ -1520,6 +1521,7 @@ describe("DesktopUpdates under a managed policy", () => {
       appVersion: "1.2.3-nightly.20261028.1",
       // A managed app ignores the mock feed, so give it a real one.
       policy: managed({ allowNightly: false, feedUrl: "https://updates.example.com/t3code" }),
+      platform: "win32", // fork: macOS builds update by hand
     });
 
     return Effect.scoped(

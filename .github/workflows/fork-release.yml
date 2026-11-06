@@ -2,7 +2,7 @@ name: Fork release
 
 # fork: builds the adamhalama/t3code desktop app and publishes it as a GitHub
 # Release that the fork's in-app updater follows (fork/README.md#pipelines).
-# Pull requests into fork/main only build and upload the installer as an artifact.
+# Pull requests into fork/main only build and upload the installers as an artifact.
 # Packaging reuses upstream's release-desktop.yml unchanged and passes it no
 # secrets, so nothing is signed.
 
@@ -181,7 +181,9 @@ jobs:
   # One release-desktop.yml call per target. Linux x64 is always built: its CLI
   # archive is the WSL runtime the Windows installer embeds, and the Windows job
   # waits for a job named "... Build Linux <arch>". Only platforms listed in
-  # PUBLISHED_PLATFORMS (assemble job) are released.
+  # PUBLISHED_PLATFORMS (assemble job) are released. Both macOS targets build on
+  # Apple Silicon as in release.yml (x64 under Rosetta) and ship no CLI archive,
+  # which the fork does not publish.
   desktop:
     name: Desktop ${{ matrix.label }}
     needs: [prepare, bundle]
@@ -197,6 +199,9 @@ jobs:
             arch: x64
             rust_target: x86_64-unknown-linux-gnu
             resource_key: linux-x64
+            cli_archive: true
+            # The launch check runs the AppImage as `t3code`; the fork names it t3code-fork.
+            launch_check: false
           - label: Windows x64
             runner: ubuntu-latest
             verify_runner: windows-2025
@@ -205,6 +210,28 @@ jobs:
             arch: x64
             rust_target: x86_64-pc-windows-msvc
             resource_key: win32-x64
+            cli_archive: true
+            launch_check: false
+          - label: macOS arm64
+            runner: macos-26
+            verify_runner: ""
+            platform: mac
+            target: dmg
+            arch: arm64
+            rust_target: aarch64-apple-darwin
+            resource_key: darwin-arm64
+            cli_archive: false
+            launch_check: true
+          - label: macOS x64
+            runner: macos-26
+            verify_runner: ""
+            platform: mac
+            target: dmg
+            arch: x64
+            rust_target: x86_64-apple-darwin
+            resource_key: darwin-x64
+            cli_archive: false
+            launch_check: false
     uses: ./.github/workflows/release-desktop.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
@@ -223,12 +250,11 @@ jobs:
       arch: ${{ matrix.arch }}
       rust_target: ${{ matrix.rust_target }}
       resource_key: ${{ matrix.resource_key }}
-      cli_archive: true
-      # The launch check runs the AppImage as `t3code`; the fork names it t3code-fork.
-      launch_check: false
+      cli_archive: ${{ matrix.cli_archive }}
+      launch_check: ${{ matrix.launch_check }}
 
   assemble:
-    name: ${{ needs.prepare.outputs.publish == 'true' && 'Publish release' || 'Collect installer' }}
+    name: ${{ needs.prepare.outputs.publish == 'true' && 'Publish release' || 'Collect installers' }}
     needs: [prepare, desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -239,8 +265,23 @@ jobs:
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       UPSTREAM_VERSION: ${{ needs.prepare.outputs.upstream_version }}
-      PUBLISHED_PLATFORMS: win
+      PUBLISHED_PLATFORMS: win mac
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      # scripts/merge-update-manifests.ts, as in release.yml.
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=@t3tools/scripts...
+
       - name: Download desktop artifacts
         uses: actions/download-artifact@v8
         with:
@@ -272,20 +313,37 @@ jobs:
             mv "$manifest" "${manifest%-win-*.yml}.yml"
           done
 
+          # electron-updater reads one latest-mac.yml and picks the file whose
+          # name carries the running arch; release-desktop.yml names the x64
+          # copy latest-mac-x64.yml. Merged as in release.yml.
+          node scripts/merge-update-manifests.ts --platform mac \
+            release-assets/latest-mac.yml release-assets/latest-mac-x64.yml
+          rm release-assets/latest-mac-x64.yml
+
           ls -la release-assets
-          test -f release-assets/latest.yml
-          grep -qx "version: $VERSION" release-assets/latest.yml
+          for manifest in latest.yml latest-mac.yml; do
+            # merge-update-manifests.ts writes the version quoted.
+            grep -Eqx "version: '?$VERSION'?" "release-assets/$manifest"
+            if grep -q '^publisherName' "release-assets/$manifest"; then
+              echo "Unexpected publisherName in $manifest: the fork ships unsigned builds." >&2
+              exit 1
+            fi
+          done
           exes=(release-assets/*.exe)
           test ${#exes[@]} -eq 1
           test -f "${exes[0]}.blockmap"
           grep -q "path: $(basename "${exes[0]}")" release-assets/latest.yml
-          if grep -q '^publisherName' release-assets/latest.yml; then
-            echo "Unexpected publisherName: the fork ships unsigned builds." >&2
-            exit 1
-          fi
-          cat release-assets/latest.yml
+          for arch in arm64 x64; do
+            for ext in dmg zip; do
+              file="T3-Code-Fork-$VERSION-$arch.$ext"
+              test -f "release-assets/$file"
+              test -f "release-assets/$file.blockmap"
+            done
+            grep -q "url: T3-Code-Fork-$VERSION-$arch.zip" release-assets/latest-mac.yml
+          done
+          cat release-assets/latest.yml release-assets/latest-mac.yml
 
-      - name: Upload installer
+      - name: Upload installers
         uses: actions/upload-artifact@v7
         with:
           name: t3code-fork-${{ needs.prepare.outputs.version }}
@@ -311,7 +369,12 @@ jobs:
           cat > release-notes.md <<EOF
           T3 Code (Fork) $VERSION, built from [\`${SHA:0:12}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA) on upstream [v$UPSTREAM_VERSION](https://github.com/pingdotgg/t3code/releases/tag/v$UPSTREAM_VERSION).
 
-          Unsigned Windows x64 build. Installs as "T3 Code (Fork)" next to official T3 Code and updates itself from this repository's releases. Windows SmartScreen warns on first install: More info -> Run anyway. See [fork/README.md](https://github.com/$GITHUB_REPOSITORY/blob/fork/main/fork/README.md).
+          Unsigned builds for Windows x64 (\`.exe\`) and macOS on Apple Silicon (\`arm64.dmg\`) or Intel (\`x64.dmg\`). They install as "T3 Code (Fork)" next to official T3 Code.
+
+          - Windows updates itself from this repository's releases. SmartScreen warns on first install: More info -> Run anyway.
+          - macOS updates by hand: download the new DMG and replace the app. Gatekeeper blocks the first launch: System Settings -> Privacy & Security -> Open Anyway, or run \`xattr -dr com.apple.quarantine "/Applications/T3 Code (Fork).app"\`.
+
+          See [fork/README.md](https://github.com/$GITHUB_REPOSITORY/blob/fork/main/fork/README.md).
           EOF
           gh release create "$tag" release-assets/* \
             -R "$GITHUB_REPOSITORY" \

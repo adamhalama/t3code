@@ -45,6 +45,19 @@ export const FORK_UPDATE_REPOSITORY = "adamhalama/t3code";
 /** The fork publishes stable releases only, so the Stable/Nightly track picker is hidden. */
 export const FORK_HAS_NIGHTLY_UPDATES: boolean = false;
 
+/**
+ * The fork's macOS builds carry no Developer ID signature. Squirrel.Mac installs an update only
+ * when its signature satisfies the running app's designated requirement, which an unsigned or
+ * ad-hoc signed app does not have, so every in-app install would fail.
+ */
+const FORK_MAC_BUILDS_SIGNED: boolean = false;
+
+/** Why the in-app updater stays off on `platform`, or null where it installs fork releases itself. */
+export function forkManualUpdateReason(platform: string): string | null {
+  if (platform !== "darwin" || FORK_MAC_BUILDS_SIGNED) return null;
+  return `This Mac build is unsigned, so it cannot update itself. Download the latest release from https://github.com/${FORK_UPDATE_REPOSITORY}/releases/latest and replace the app in Applications.`;
+}
+
 /** Window title and app name: `T3 Code (Fork)`, `T3 Code (Fork Dev)`, `T3 Code (Fork Nightly)`. */
 export function forkDesktopDisplayName(baseName: string, stageLabel: string): string {
   return stageLabel === "Beta" || stageLabel === "Alpha"

@@ -51,6 +51,26 @@ it.layer(NodeServices.layer)("fork desktop build config", (it) => {
     }).pipe(Effect.provide(upstreamCi)),
   );
 
+  it.effect("builds unsigned Mac disk images and the zips the update feed lists", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "0.1.7-fork.1",
+        false,
+        false,
+        undefined,
+        undefined,
+        false,
+        "arm64",
+      );
+      const mac = config.mac as { target: ReadonlyArray<string> };
+      assert.deepStrictEqual(mac.target, ["dmg", "zip"]);
+      assert.notProperty(mac, "sign");
+      assert.notProperty(mac, "provisioningProfile");
+    }).pipe(Effect.provide(upstreamCi)),
+  );
+
   it.effect("ignores GITHUB_REPOSITORY but honors an explicit update repository", () =>
     Effect.gen(function* () {
       const fromCi = yield* resolveGitHubPublishConfig("latest").pipe(Effect.provide(upstreamCi));

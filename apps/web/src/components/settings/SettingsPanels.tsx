@@ -116,6 +116,7 @@ import { nativeLanguageName, SYSTEM_LANGUAGE } from "@t3tools/client-runtime/loc
 import { SUPPORTED_LOCALES } from "../../i18n/locales";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
+import { RecentThreadsTimeoutSettingsRow } from "../../fork/recentThreads/RecentThreadsTimeoutSettingsRow"; // fork
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
 import { UpdateTrackSwitchDialog } from "./UpdateTrackSwitchDialog";
@@ -932,6 +933,7 @@ export function GeneralSettingsPanel() {
             />
           }
         />
+        <RecentThreadsTimeoutSettingsRow /> {/* fork: Ctrl+Tab recent thread switcher */}
       </SettingsSection>
 
       <SettingsSection id="confirmations" title={gt("Confirmations")}>

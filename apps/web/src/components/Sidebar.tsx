@@ -222,6 +222,7 @@ import { SidebarPointerSensor } from "./Sidebar.pointer";
 // fork: Ctrl+Tab recent thread switcher
 import {
   useRecentSwitcherRevealKey,
+  useRecentThreadsStore,
   withRecentSwitcherReveal,
 } from "../fork/recentThreads/recentThreadsStore";
 import { createSidebarListMotion } from "./Sidebar.motion";
@@ -577,11 +578,10 @@ function useSidebarThreads(input: {
                 )
               : folder.threads,
             hiddenThreads: collapsed
-              ? folder.threads.filter(
-                  (thread) =>
-                    threadShellKey(thread) !== routeRowThreadKey &&
-                    threadShellKey(thread) !== switcherRevealKey,
-                )
+              ? folder.threads.filter((thread) => {
+                  const key = threadShellKey(thread);
+                  return key !== routeRowThreadKey && key !== switcherRevealKey;
+                })
               : EMPTY_THREADS,
           };
         });
@@ -2967,7 +2967,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     threadByKey,
   ]);
 
-  const showJumpHints = useThreadJumpHintsVisible(keybindings, routeThreadRef);
+  const jumpHintsVisible = useThreadJumpHintsVisible(keybindings, routeThreadRef);
+  // fork: the Ctrl+Tab switcher's numbers take the jump hints' place while it is open
+  const recentSwitcherOpen = useRecentThreadsStore(
+    (state) => jumpHintsVisible && state.switcher.phase === "open",
+  );
+  const showJumpHints = jumpHintsVisible && !recentSwitcherOpen;
 
   const handleNewThreadClick = (event?: ReactMouseEvent) => {
     if (

@@ -107,6 +107,7 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
+import { RecentThreadsTimeoutSettingsRow } from "../../fork/recentThreads/RecentThreadsTimeoutSettingsRow"; // fork
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
 import { UpdateTrackSwitchDialog } from "./UpdateTrackSwitchDialog";
@@ -887,6 +888,7 @@ export function GeneralSettingsPanel() {
             />
           }
         />
+        <RecentThreadsTimeoutSettingsRow /> {/* fork: Ctrl+Tab recent thread switcher */}
       </SettingsSection>
 
       <SettingsSection id="confirmations" title="Confirmations">

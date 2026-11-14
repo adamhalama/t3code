@@ -25,30 +25,19 @@ export function RecentThreadNumberBadge(props: { number: number; selected: boole
  * visible in the slot that hides everything else for jump hints.
  */
 export function RecentThreadRowBadge(props: {
-  state: RecentThreadRowState | null;
+  state: RecentThreadRowState;
   statusIcon?: ReactNode;
 }) {
-  if (props.state === null || props.state.kind === "dim") return null;
   return (
     <span data-jump-hint className="inline-flex items-center gap-1.5">
       {props.statusIcon}
-      <RecentThreadNumberBadge
-        number={props.state.number}
-        selected={props.state.kind === "selected"}
-      />
+      <RecentThreadNumberBadge number={props.state.number} selected={props.state.selected} />
     </span>
   );
 }
 
-export function recentThreadRowHasBadge(state: RecentThreadRowState | null): boolean {
-  return state !== null && state.kind !== "dim";
-}
-
-/** Classes merged last into a row's surface: the target lights up, every other row recedes. */
+/** Merged last into the selected row's surface; `RecentThreadSwitcher` dims the others with CSS. */
 export function recentThreadRowClassName(state: RecentThreadRowState | null): string | false {
-  if (state === null) return false;
-  if (state.kind === "selected") {
-    return "bg-primary/20 text-sidebar-foreground opacity-100 ring-1 ring-inset ring-primary/70 hover:bg-primary/25 before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-r-sm before:bg-primary";
-  }
-  return "opacity-40";
+  if (state === null || !state.selected) return false;
+  return "bg-primary/20 text-sidebar-foreground opacity-100 ring-1 ring-inset ring-primary/70 hover:bg-primary/25 before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-r-sm before:bg-primary";
 }

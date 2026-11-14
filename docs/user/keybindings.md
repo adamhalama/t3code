@@ -185,8 +185,10 @@ through the pages you have visited, like a browser's back and forward buttons.
 threads. A quick tap opens the previous thread, so repeated taps toggle between
 the two most recent. Hold Ctrl to see the list: press Tab or Shift+Tab to move,
 release Ctrl to open the selected thread, or press Escape to stay. While the
-list is open, `ctrl+l` folds it into the sidebar chip and back. The list is
-kept per browser or desktop app and skips archived and deleted threads.
+list is open, `ctrl+l` folds it into the sidebar chip and back. The list skips
+archived and deleted threads and starts empty each time the app starts. Threads
+you left more than 30 minutes ago drop out of it, except the one you came from;
+change this under **Settings → General → Recent threads timeout**.
 
 `chat.new` may ask you to choose a project when there is more than one.
 `chat.newLocal` skips that chooser. Both use your

@@ -83,3 +83,11 @@ export function parseForkVersion(
 export function isForkVersion(version: string): boolean {
   return parseForkVersion(version) !== null;
 }
+
+/**
+ * The upstream release a version is built on: `0.1.9-fork.1` -> `0.1.9`, anything else unchanged.
+ * Remote hosts download the t3 runtime from upstream releases, which never carry fork versions.
+ */
+export function forkUpstreamVersion(version: string): string {
+  return parseForkVersion(version)?.upstream ?? version;
+}

@@ -22,6 +22,7 @@ import * as Electron from "electron";
 
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { forkUpstreamVersion } from "@t3tools/shared/forkIdentity"; // fork
 import type { RemoteT3RunnerOptions } from "@t3tools/ssh/tunnel";
 import serverPackageJson from "../../server/package.json" with { type: "json" };
 
@@ -119,7 +120,7 @@ const resolveDesktopSshCliRunner = (
       nodeEngineRange: serverPackageJson.engines.node,
     };
   }
-  return { archiveVersion: environment.appVersion };
+  return { archiveVersion: forkUpstreamVersion(environment.appVersion) }; // fork: was appVersion
 };
 
 const layerDesktopSshEnvironment = Layer.unwrap(

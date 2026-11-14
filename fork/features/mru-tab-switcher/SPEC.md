@@ -9,6 +9,7 @@ Switch between recently used threads the way VS Code switches between recent edi
 ## Behaviour
 
 - The switcher orders threads by when they were last opened, most recent first. The current thread is always first.
+- A thread drops out of the list once you left it longer ago than the timeout: 30 minutes by default, set in Settings → General (15 min, 30 min, 1 h, 2 h or Never). The thread you came from always stays, so a tap always goes back.
 - **Tap** Ctrl+Tab (press and release Ctrl quickly): open the previously opened thread at once. No picker is shown. Tapping again returns to the first thread.
 - **Hold** Ctrl and press Tab: a picker opens with the second thread selected.
   - Tab moves the selection down, Shift+Tab moves it up. Both wrap around.
@@ -31,5 +32,5 @@ Switch between recently used threads the way VS Code switches between recent edi
 ## Scope
 
 - Supported in the desktop app. In a normal browser tab the browser keeps Ctrl+Tab for itself, so users must rebind the command there.
-- The recent list is kept per client in local storage and follows the existing thread identity (environment + thread id). It is not synced through the server.
+- The recent list is kept in memory per window and follows the existing thread identity (environment + thread id). It starts empty on every app start or reload and is not synced through the server. The timeout and the folded-list choice are kept in local storage.
 - No changes on mobile.

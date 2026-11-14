@@ -86,7 +86,7 @@ The last matching rule in `keybindings.json` wins, even across different command
 - `navigation.back` (`mod+[`) / `navigation.forward` (`mod+]`): Moves through visited pages.
 - `chat.new` / `chat.newLocal` / `chat.newWithoutProject` (`mod+alt+n`): Start new threads using your [new-thread defaults](./thread-sidebar.md#start-a-thread) or [without a project](./thread-sidebar.md#start-without-a-project).
 <!-- fork: recent thread switcher -->
-- `thread.recent.next` (`ctrl+tab` on every platform) / `thread.recent.previous` (`ctrl+shift+tab`): Switch between recently opened threads. A quick tap opens the previous thread, so repeated taps toggle between the two most recent. Hold Ctrl to see the list: Tab or Shift+Tab moves, releasing Ctrl opens the selected thread, Escape stays. While the list is open, `ctrl+l` folds it into the sidebar chip and back. The list is kept per browser or desktop app and skips archived and deleted threads.
+- `thread.recent.next` (`ctrl+tab` on every platform) / `thread.recent.previous` (`ctrl+shift+tab`): Switch between recently opened threads. A quick tap opens the previous thread, so repeated taps toggle between the two most recent. Hold Ctrl to see the list: Tab or Shift+Tab moves, releasing Ctrl opens the selected thread, Escape stays. While the list is open, `ctrl+l` folds it into the sidebar chip and back. The list skips archived and deleted threads and starts empty each time the app starts. Threads you left more than 30 minutes ago drop out of it, except the one you came from; change this under **Settings → General → Recent threads timeout**.
 
 ## Reserved and platform shortcuts
 

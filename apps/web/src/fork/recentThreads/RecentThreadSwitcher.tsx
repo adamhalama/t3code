@@ -9,18 +9,18 @@ import { effectiveShortcutsForCommand } from "../../keybindings";
 import { isMacPlatform } from "../../lib/utils";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../../shortcuts/dispatcher";
-import { readThreadShell } from "../../state/entities";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../../threadRoutes";
 import { RecentThreadsChip } from "./RecentThreadsChip";
+import { lookupThread } from "./recentThreadLookup";
 import { RecentThreadPanelRow } from "./RecentThreadsList";
-import { resolveRecentThreadList } from "./recentThreadsMru";
 import {
-  pruneRecentThreadKeys,
   recentSwitcher,
+  recordRouteThread,
+  resolveRecentThreads,
   selectRecentSwitcherSelectedKey,
   setRecentSwitcherCommitHandler,
-  touchRecentThreadKey,
+  setRecentSwitcherHoldKeyLabel,
   useRecentSwitcherOpen,
   useRecentThreadsStore,
 } from "./recentThreadsStore";
@@ -33,14 +33,13 @@ interface HeldModifiers {
 
 const NO_MODIFIERS: HeldModifiers = { ctrl: false, meta: false, alt: false };
 
-function lookupThread(key: string) {
-  const ref = parseScopedThreadKey(key);
-  return ref === null ? null : readThreadShell(ref);
+function routeThreadKeyOfParams(params: Parameters<typeof resolveThreadRouteTarget>[0]) {
+  const target = resolveThreadRouteTarget(params);
+  return target?.kind === "server" ? scopedThreadKey(target.threadRef) : null;
 }
 
 function readRouteThreadKey(router: AnyRouter): string | null {
-  const target = resolveThreadRouteTarget(router.state.matches.at(-1)?.params ?? {});
-  return target?.kind === "server" ? scopedThreadKey(target.threadRef) : null;
+  return routeThreadKeyOfParams(router.state.matches.at(-1)?.params ?? {});
 }
 
 function heldModifiersOfShortcut(shortcut: KeybindingShortcut | undefined): HeldModifiers {
@@ -89,14 +88,8 @@ function installRecentThreadSwitcherInput(router: AnyRouter): () => void {
     if (recentSwitcher.getState().phase === "idle") {
       if (isCommandPaletteOpen()) return false;
       held = modifiers;
-      pruneRecentThreadKeys(lookupThread);
-      const currentKey = readRouteThreadKey(router);
-      const items = resolveRecentThreadList(
-        useRecentThreadsStore.getState().recentKeys,
-        currentKey,
-        lookupThread,
-      );
-      useRecentThreadsStore.setState({ holdKeyLabel: holdKeyLabel(modifiers) });
+      const { items, currentKey } = resolveRecentThreads(lookupThread);
+      setRecentSwitcherHoldKeyLabel(holdKeyLabel(modifiers));
       const canHold = modifiers.ctrl || modifiers.meta || modifiers.alt;
       if (!recentSwitcher.press({ direction, items, currentKey, canHold })) return false;
       // A focused frame keeps the modifier's key up to itself; take focus back so the release is heard.
@@ -234,6 +227,8 @@ function installRecentThreadSwitcherInput(router: AnyRouter): () => void {
     setRecentSwitcherCommitHandler((key) => {
       const ref = parseScopedThreadKey(key);
       if (ref === null || key === readRouteThreadKey(router)) return;
+      // Recorded now, not when the route settles, so a quick second tap already sees the switch.
+      recordRouteThread(key, lookupThread);
       void router.navigate({
         to: "/$environmentId/$threadId",
         params: buildThreadRouteParams(ref),
@@ -281,40 +276,66 @@ function installRecentThreadSwitcherInput(router: AnyRouter): () => void {
   };
 }
 
-/** Stands in for the collapsed sidebar: the same chip, highlight and list, slid in from the left. */
+/**
+ * Stands in for the collapsed sidebar. Expanded, it is just the chip and its
+ * popover; folded (Ctrl+L), a slim panel with the chip and the list slides in.
+ */
 function RecentThreadsPanel() {
-  const items = useRecentThreadsStore((state) => state.switcher.items);
-  const selected = useRecentThreadsStore((state) => state.switcher.selected);
+  const listCollapsed = useRecentThreadsStore((state) => state.switcher.listCollapsed);
   return (
     <>
       <div aria-hidden className="pointer-events-none fixed inset-0 z-40 bg-black/45" />
-      <aside
-        aria-label="Recent threads"
-        data-recent-switch-surface=""
-        data-testid="recent-threads-panel"
-        className="fixed inset-y-0 left-0 z-50 flex w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-[opacity,translate] duration-150 ease-out [-webkit-app-region:no-drag] starting:-translate-x-6 starting:opacity-0 motion-reduce:transition-none"
-      >
-        <div className="flex h-12 shrink-0 items-center pr-4 pl-13 text-sm font-medium text-muted-foreground">
-          Recent threads
-        </div>
-        <RecentThreadsChip className="mx-2 mb-2 shrink-0" />
-        <ul
-          role="listbox"
-          aria-label="Recent threads"
-          className="min-h-0 space-y-0.5 overflow-y-auto px-2 pb-2"
+      {listCollapsed ? (
+        <RecentThreadsSlimPanel />
+      ) : (
+        <div
+          data-recent-switch-surface=""
+          className="fixed top-12 left-2 z-50 w-71 rounded-lg bg-sidebar shadow-2xl"
         >
-          {items.map((key, index) => (
-            <RecentThreadPanelRow
-              key={key}
-              threadKey={key}
-              index={index}
-              selected={index === selected}
-            />
-          ))}
-        </ul>
-      </aside>
+          <RecentThreadsChip />
+        </div>
+      )}
     </>
   );
+}
+
+function RecentThreadsSlimPanel() {
+  const items = useRecentThreadsStore((state) => state.switcher.items);
+  const selected = useRecentThreadsStore((state) => state.switcher.selected);
+  return (
+    <aside
+      aria-label="Recent threads"
+      data-recent-switch-surface=""
+      data-testid="recent-threads-panel"
+      className="fixed inset-y-0 left-0 z-50 flex w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-[opacity,translate] duration-150 ease-out [-webkit-app-region:no-drag] starting:-translate-x-6 starting:opacity-0 motion-reduce:transition-none"
+    >
+      <div className="flex h-12 shrink-0 items-center pr-4 pl-13 text-sm font-medium text-muted-foreground">
+        Recent threads
+      </div>
+      <RecentThreadsChip className="mx-2 mb-2 shrink-0" />
+      <ul
+        role="listbox"
+        aria-label="Recent threads"
+        className="min-h-0 space-y-0.5 overflow-y-auto px-2 pb-2"
+      >
+        {items.map((key, index) => (
+          <RecentThreadPanelRow
+            key={key}
+            threadKey={key}
+            index={index}
+            selected={index === selected}
+          />
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+/** Dims every sidebar thread row but the selection, without re-rendering the rows. */
+function RecentThreadsSidebarDim() {
+  const selectedKey = useRecentThreadsStore(selectRecentSwitcherSelectedKey);
+  const keep = selectedKey === null ? "" : `:not([data-sidebar-row="${CSS.escape(selectedKey)}"])`;
+  return <style>{`[data-thread-item] [data-sidebar-row]${keep}{opacity:.4}`}</style>;
 }
 
 /**
@@ -323,19 +344,21 @@ function RecentThreadsPanel() {
  */
 export function RecentThreadSwitcher() {
   const router = useRouter();
-  const params = useParams({ strict: false });
-  const target = resolveThreadRouteTarget(params);
-  const routeThreadKey = target?.kind === "server" ? scopedThreadKey(target.threadRef) : null;
+  const routeThreadKey = useParams({ strict: false, select: routeThreadKeyOfParams });
   const open = useRecentSwitcherOpen();
   const sidebarVisible = useSidebarVisibility();
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records each thread the route opens in the recent list in local storage
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records each route change in the in-memory recent list, which lives outside React
   useEffect(() => {
-    if (routeThreadKey !== null) touchRecentThreadKey(routeThreadKey);
+    recordRouteThread(routeThreadKey, lookupThread);
   }, [routeThreadKey]);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pages such as /pair unmount the sidebar layout; leaving for them leaves the thread
+  useEffect(() => () => recordRouteThread(null, lookupThread), []);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes window key, pointer and focus listeners and the desktop menu actions for the switcher
   useEffect(() => installRecentThreadSwitcherInput(router), [router]);
 
-  return open && !sidebarVisible ? <RecentThreadsPanel /> : null;
+  if (!open) return null;
+  return sidebarVisible ? <RecentThreadsSidebarDim /> : <RecentThreadsPanel />;
 }

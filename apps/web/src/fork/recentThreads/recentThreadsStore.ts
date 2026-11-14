@@ -1,5 +1,5 @@
-import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
+import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 import { create } from "zustand";
 
 import {
@@ -11,43 +11,93 @@ import {
 } from "./recentSwitcherMachine";
 import {
   browserStorage,
-  pruneRecentThreads,
+  expireRecentThreads,
   readListCollapsed,
-  readRecentThreadKeys,
-  touchRecentThread,
+  readTimeoutMinutes,
+  recordRecentThreadVisit,
+  resolveRecentThreadList,
   writeListCollapsed,
-  writeRecentThreadKeys,
+  writeTimeoutMinutes,
   type RecentThreadCandidate,
+  type RecentThreadEntry,
 } from "./recentThreadsMru";
 
 interface RecentThreadsStoreState {
-  readonly recentKeys: readonly string[];
+  /** Published only while the switcher is open; React shows nothing for the other phases. */
   readonly switcher: RecentSwitcherState;
   /** The modifier the user holds, for the "release Ctrl" hints. */
   readonly holdKeyLabel: string;
 }
 
+let listCollapsed = readListCollapsed(browserStorage());
+
 /** Small on purpose: rows and the sidebar subscribe through the narrow selectors below. */
 export const useRecentThreadsStore = create<RecentThreadsStoreState>(() => ({
-  recentKeys: readRecentThreadKeys(browserStorage()),
-  switcher: { ...IDLE_RECENT_SWITCHER_STATE, listCollapsed: readListCollapsed(browserStorage()) },
+  switcher: { ...IDLE_RECENT_SWITCHER_STATE, listCollapsed },
   holdKeyLabel: "Ctrl",
 }));
 
-export function touchRecentThreadKey(key: string): void {
-  const { recentKeys } = useRecentThreadsStore.getState();
-  const next = touchRecentThread(recentKeys, key);
-  if (next === recentKeys) return;
-  useRecentThreadsStore.setState({ recentKeys: next });
-  writeRecentThreadKeys(browserStorage(), next);
+// Read only when Ctrl+Tab is pressed, so they stay out of the store rows subscribe to.
+let recentEntries: readonly RecentThreadEntry[] = [];
+let routeThreadKey: string | null = null;
+let timeoutMinutes = readTimeoutMinutes(browserStorage());
+
+export function getRecentThreadsTimeoutMinutes(): number {
+  return timeoutMinutes;
 }
 
-export function pruneRecentThreadKeys(lookup: (key: string) => RecentThreadCandidate | null): void {
-  const { recentKeys } = useRecentThreadsStore.getState();
-  const next = pruneRecentThreads(recentKeys, lookup);
-  if (next === recentKeys) return;
-  useRecentThreadsStore.setState({ recentKeys: next });
-  writeRecentThreadKeys(browserStorage(), next);
+type RecentThreadLookup = (key: string) => RecentThreadCandidate | null;
+
+function expire(lookup: RecentThreadLookup, now: number): void {
+  // Off a thread route, the list's head is the thread just left; it counts as open.
+  const anchorKey = routeThreadKey ?? recentEntries[0]?.key ?? null;
+  recentEntries = expireRecentThreads(
+    recentEntries,
+    anchorKey,
+    now,
+    timeoutMinutes * 60_000,
+    lookup,
+  );
+}
+
+export function setRecentThreadsTimeoutMinutes(
+  minutes: number,
+  lookup: RecentThreadLookup,
+  now = Date.now(),
+): void {
+  // Threads already past the old timeout stay gone under a longer one.
+  expire(lookup, now);
+  timeoutMinutes = minutes;
+  writeTimeoutMinutes(browserStorage(), minutes);
+}
+
+/** Called with every thread the route opens, and null when it leaves threads. */
+export function recordRouteThread(
+  nextKey: string | null,
+  lookup: RecentThreadLookup,
+  now = Date.now(),
+): void {
+  if (nextKey === routeThreadKey) return;
+  recentEntries = recordRecentThreadVisit(recentEntries, routeThreadKey, nextKey, now);
+  routeThreadKey = nextKey;
+  expire(lookup, now);
+}
+
+export function resolveRecentThreads(
+  lookup: RecentThreadLookup,
+  now = Date.now(),
+): { readonly items: readonly string[]; readonly currentKey: string | null } {
+  expire(lookup, now);
+  return {
+    items: resolveRecentThreadList(recentEntries, routeThreadKey, lookup),
+    currentKey: routeThreadKey,
+  };
+}
+
+export function setRecentSwitcherHoldKeyLabel(label: string): void {
+  if (useRecentThreadsStore.getState().holdKeyLabel !== label) {
+    useRecentThreadsStore.setState({ holdKeyLabel: label });
+  }
 }
 
 type CommitHandler = (key: string, reason: RecentSwitcherCommitReason) => void;
@@ -64,13 +114,19 @@ export function setRecentSwitcherCommitHandler(handler: CommitHandler): () => vo
 export const recentSwitcher: RecentSwitcherMachine = createRecentSwitcherMachine({
   setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
   clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-  readListCollapsed: () => readListCollapsed(browserStorage()),
-  writeListCollapsed: (collapsed) => writeListCollapsed(browserStorage(), collapsed),
-  onChange: (switcher) => useRecentThreadsStore.setState({ switcher }),
-  onCommit: (key, reason) => {
-    touchRecentThreadKey(key);
-    commitHandler(key, reason);
+  readListCollapsed: () => listCollapsed,
+  writeListCollapsed: (collapsed) => {
+    listCollapsed = collapsed;
+    writeListCollapsed(browserStorage(), collapsed);
   },
+  onChange: (switcher) => {
+    // A quick tap goes idle -> pending -> idle without UI; skip waking subscribers for it.
+    if (switcher.phase !== "open" && useRecentThreadsStore.getState().switcher.phase !== "open") {
+      return;
+    }
+    useRecentThreadsStore.setState({ switcher });
+  },
+  onCommit: (key, reason) => commitHandler(key, reason),
 });
 
 export function useRecentSwitcherOpen(): boolean {
@@ -82,28 +138,37 @@ export function selectRecentSwitcherSelectedKey(state: RecentThreadsStoreState):
   return switcher.phase === "open" ? (switcher.items[switcher.selected] ?? null) : null;
 }
 
-export type RecentThreadRowState =
-  | { readonly kind: "dim" }
-  | { readonly kind: "listed" | "selected"; readonly number: number };
+export interface RecentThreadRowState {
+  readonly selected: boolean;
+  readonly number: number;
+}
 
-function encodeRowState(state: RecentThreadsStoreState, threadKey: string): string | null {
+let itemIndex: { items: readonly string[]; index: Map<string, number> } | null = null;
+
+function indexOfItem(items: readonly string[], key: string): number {
+  if (itemIndex?.items !== items) {
+    itemIndex = { items, index: new Map(items.map((item, index) => [item, index])) };
+  }
+  return itemIndex.index.get(key) ?? -1;
+}
+
+/** The row's 1-based number, negated when selected; null when it is not listed. */
+function encodeRowState(state: RecentThreadsStoreState, threadKey: string): number | null {
   const { switcher } = state;
   if (switcher.phase !== "open") return null;
-  const index = switcher.items.indexOf(threadKey);
-  if (index === -1) return "dim";
-  return `${index === switcher.selected ? "selected" : "listed"}:${index + 1}`;
+  const index = indexOfItem(switcher.items, threadKey);
+  if (index === -1) return null;
+  return index === switcher.selected ? -(index + 1) : index + 1;
 }
 
 /**
- * A sidebar row's part in an open switcher. The selector returns a string, so
- * a key press re-renders only the rows whose highlight or number changed.
+ * A sidebar row's part in an open switcher. Unlisted rows always get null and
+ * are dimmed by CSS, so opening and closing re-renders only the listed rows.
  */
 export function useRecentThreadRowState(threadKey: string): RecentThreadRowState | null {
   const encoded = useRecentThreadsStore((state) => encodeRowState(state, threadKey));
   if (encoded === null) return null;
-  if (encoded === "dim") return { kind: "dim" };
-  const [kind, number] = encoded.split(":");
-  return { kind: kind === "selected" ? "selected" : "listed", number: Number(number) };
+  return { selected: encoded < 0, number: Math.abs(encoded) };
 }
 
 interface RevealThread {
@@ -133,26 +198,29 @@ export interface RecentSwitcherRevealInput<TGroup extends RevealFolderGroup> {
   } | null;
 }
 
-function revealThreadKey(thread: Pick<RevealThread, "environmentId" | "id">): string {
-  return scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
+function isThread(ref: ScopedThreadRef, thread: Pick<RevealThread, "environmentId" | "id">) {
+  return thread.id === ref.threadId && thread.environmentId === ref.environmentId;
 }
 
 export function isHiddenInSidebar<TGroup extends RevealFolderGroup>(
   key: string,
   input: RecentSwitcherRevealInput<TGroup>,
 ): boolean {
+  const ref = parseScopedThreadKey(key);
+  if (ref === null) return false;
   const inShelf = input.shelves.some(
     (shelf) =>
-      shelf.threads.some((thread) => revealThreadKey(thread) === key) &&
-      !shelf.shown.some((thread) => revealThreadKey(thread) === key),
+      shelf.threads.some((thread) => isThread(ref, thread)) &&
+      !shelf.shown.some((thread) => isThread(ref, thread)),
   );
   if (inShelf || input.folders === null) return inShelf;
   const { folders } = input;
-  const thread = folders.threads.find((candidate) => revealThreadKey(candidate) === key);
+  const thread = folders.threads.find((candidate) => isThread(ref, candidate));
   if (thread === undefined) return false;
   const group = folders.groups.find((candidate) =>
     candidate.memberProjectRefs.some(
-      (ref) => ref.environmentId === thread.environmentId && ref.projectId === thread.projectId,
+      (member) =>
+        member.environmentId === thread.environmentId && member.projectId === thread.projectId,
     ),
   );
   return group !== undefined && folders.isCollapsed(group);
@@ -173,19 +241,18 @@ export function useRecentSwitcherRevealKey<TGroup extends RevealFolderGroup>(
   });
 }
 
-/** `shown` plus the revealed thread from `all`, in `all`'s order. */
+/** `shown` plus the revealed thread from `all`, in `all`'s order. `shown` holds items of `all`. */
 export function withRecentSwitcherReveal<T extends RevealThread>(
   shown: readonly T[],
   all: readonly T[],
   revealKey: string | null,
 ): readonly T[] {
-  if (revealKey === null || shown.some((thread) => revealThreadKey(thread) === revealKey)) {
-    return shown;
-  }
-  if (!all.some((thread) => revealThreadKey(thread) === revealKey)) return shown;
-  const shownKeys = new Set(shown.map(revealThreadKey));
-  return all.filter((thread) => {
-    const key = revealThreadKey(thread);
-    return key === revealKey || shownKeys.has(key);
-  });
+  if (revealKey === null) return shown;
+  const ref = parseScopedThreadKey(revealKey);
+  if (ref === null || shown.some((thread) => isThread(ref, thread))) return shown;
+  const revealed = all.find((thread) => isThread(ref, thread));
+  if (revealed === undefined) return shown;
+  if (shown.length === 0) return [revealed];
+  const shownSet = new Set(shown);
+  return all.filter((thread) => thread === revealed || shownSet.has(thread));
 }

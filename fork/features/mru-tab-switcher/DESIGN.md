@@ -9,8 +9,8 @@ Live mock: https://adamhalama.github.io/t3code/mru-tab-switcher/combined/4.html
 - **Header chip.** The sidebar's Search row turns into a `Recent 2/9` chip for as long as the switcher is open.
 - **List popover (expanded by default).** A compact list opens beside the chip, pointing at it. One row per recent thread: number, title, project, status icon, time. The selected row matches the sidebar selection at every step.
 - **Collapsed form.** Clicking the chip, or pressing Ctrl+L, folds the list back into the chip. The chip then reads `2/9 · <selected title>`. Clicking it again, or Ctrl+L, expands the list.
-- The expanded or collapsed choice is remembered in local storage for the next switch. There is no Settings entry.
-- **Sidebar hidden.** If the sidebar is collapsed, a slim panel with the same highlight, chip and list slides in from the left while Ctrl is held.
+- The expanded or collapsed choice is remembered in local storage for the next switch.
+- **Sidebar hidden.** If the sidebar is collapsed, only one list shows: expanded, the chip and its popover; collapsed, a slim panel with the folded chip and the list slides in from the left.
 
 ## Interaction rules
 
@@ -18,16 +18,26 @@ Live mock: https://adamhalama.github.io/t3code/mru-tab-switcher/combined/4.html
 - Ctrl+L works only while the switcher is open. Outside the switcher it does what it did before.
 - On macOS, Ctrl+click is a right-click. The switcher handles the toggle on pointer down and blocks the context menu while it is open.
 
+## Performance
+
+The sidebar can hold hundreds of rows, so the switcher keeps them out of its updates:
+
+- The recent list and the timeout live outside the zustand store. Navigation and a quick tap publish nothing; the store changes only while the picker is open.
+- Rows outside the list keep a `null` row state. Dimming them is one `<style>` rule keyed on the selected row, so opening and closing re-renders only the listed rows.
+- The timeout is applied when Ctrl+Tab is pressed, when the route changes and when the timeout changes. There are no timers.
+
 ## Code layout
 
 Fork-owned code lives in new files to keep the upstream patch small. Every edit to an upstream file is marked with a `fork:` comment.
 
 New files, all in `apps/web/src/fork/recentThreads/`:
 
-- `recentThreadsMru.ts`: the recent list (touch, prune, display order) and its local storage.
+- `recentThreadsMru.ts`: the recent list (record visits, expire, display order) and the folded-list and timeout storage.
 - `recentSwitcherMachine.ts`: the idle, pending and open state machine (tap, hold, cycle, commit, cancel, fold).
 - `recentThreadsStore.ts`: the zustand store, the single machine instance, and the narrow row and reveal selectors.
-- `RecentThreadSwitcher.tsx`: route tracking, window key, pointer and focus listeners, desktop menu actions, and the slide-in panel.
+- `RecentThreadSwitcher.tsx`: route tracking, window key, pointer and focus listeners, desktop menu actions, the sidebar dimming rule, and the slide-in panel.
+- `RecentThreadsTimeoutSettingsRow.tsx`: the timeout row in Settings → General.
+- `recentThreadLookup.ts`: reads a thread's archived and deleted state for the list.
 - `RecentThreadsChip.tsx`, `RecentThreadsList.tsx`, `RecentThreadRowBadge.tsx`: the chip, popover, list rows and sidebar badge.
 - Tests: `recentThreadsMru.test.ts`, `recentSwitcherMachine.test.ts`, `recentThreadsStore.test.ts`.
 
@@ -42,15 +52,17 @@ Upstream files touched, from `git diff --numstat fork/main -- ':!fork' ':!apps/w
 | `apps/server/src/keybindings.test.ts`                           |  17 |   0 | Existing `keybindings.json` files gain the new defaults on startup               |
 | `apps/web/src/components/settings/KeybindingsSettings.logic.ts` |   3 |   0 | Settings labels                                                                  |
 | `apps/web/src/components/AppSidebarLayout.tsx`                  |   2 |   0 | Mounts the switcher                                                              |
-| `apps/web/src/components/Sidebar.tsx`                           |  49 |  11 | Reveals the selected thread in a closed shelf or project folder                  |
+| `apps/web/src/components/Sidebar.tsx`                           |  55 |  12 | Reveals the selected thread in a closed shelf or folder; hides jump hints        |
 | `apps/web/src/components/sidebar/SidebarThreadHeader.tsx`       |   4 |   1 | The chip over the Search row                                                     |
-| `apps/web/src/components/sidebar/SidebarThreadRow.tsx`          |  27 |   3 | Row highlight, dimming and number badge                                          |
+| `apps/web/src/components/sidebar/SidebarThreadRow.tsx`          |  27 |   3 | Selected-row highlight and number badge                                          |
+| `apps/web/src/components/settings/SettingsPanels.tsx`           |   2 |   0 | Mounts the timeout row                                                           |
+| `apps/web/src/components/settings/settingsSearch.ts`            |   7 |   0 | Makes the timeout row searchable                                                 |
 | `apps/web/src/components/ReopenClosedViewShortcut.tsx`          |   3 |   0 | Forwards the commands out of a focused preview                                   |
 | `apps/web/src/components/files/BrowserDocumentFrame.tsx`        |   3 |   0 | Forwards the commands out of an HTML render frame                                |
 | `apps/desktop/src/preview/Manager.ts`                           |   4 |   1 | Focuses the app when a preview forwards the commands, so Ctrl's release is heard |
-| `docs/user/keybindings.md`                                      |  17 |   0 | User docs and the browser tab limitation                                         |
+| `docs/user/keybindings.md`                                      |  19 |   0 | User docs and the browser tab limitation                                         |
 
-Total: 12 files, +135 / -16. The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.
+Total: 14 files, +152 / -17. The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.
 
 ## Known limitations
 

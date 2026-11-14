@@ -6,7 +6,7 @@ import {
   type RecentSwitcherCommitReason,
   type RecentSwitcherState,
 } from "./recentSwitcherMachine";
-import { touchRecentThread } from "./recentThreadsMru";
+import { recordRecentThreadVisit, type RecentThreadEntry } from "./recentThreadsMru";
 
 const ITEMS = ["env:current", "env:b", "env:c", "env:d"];
 
@@ -150,7 +150,10 @@ describe("recent switcher machine", () => {
   });
 
   it("toggles between the two most recent threads on repeated taps", () => {
-    let recent: readonly string[] = ["env:a", "env:b", "env:c"];
+    let recent: readonly RecentThreadEntry[] = ["env:a", "env:b", "env:c"].map((key) => ({
+      key,
+      at: 0,
+    }));
     let current = "env:a";
     const machine = createRecentSwitcherMachine({
       setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
@@ -159,12 +162,13 @@ describe("recent switcher machine", () => {
       writeListCollapsed: () => undefined,
       onChange: () => undefined,
       onCommit: (key) => {
-        recent = touchRecentThread(recent, key);
+        recent = recordRecentThreadVisit(recent, current, key, 0);
         current = key;
       },
     });
     const tap = () => {
-      machine.press({ direction: 1, items: recent, currentKey: current, canHold: true });
+      const items = recent.map((entry) => entry.key);
+      machine.press({ direction: 1, items, currentKey: current, canHold: true });
       machine.release();
     };
     tap();
@@ -173,7 +177,7 @@ describe("recent switcher machine", () => {
     expect(current).toBe("env:a");
     tap();
     expect(current).toBe("env:b");
-    expect(recent).toEqual(["env:b", "env:a", "env:c"]);
+    expect(recent.map((entry) => entry.key)).toEqual(["env:b", "env:a", "env:c"]);
   });
 
   it("does nothing with a single thread", () => {

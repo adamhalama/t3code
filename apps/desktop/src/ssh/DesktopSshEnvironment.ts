@@ -4,6 +4,7 @@ import type {
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
 import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
+import { forkUpstreamVersion } from "@t3tools/shared/forkIdentity"; // fork
 import * as NetService from "@t3tools/shared/Net";
 import * as SshAuth from "@t3tools/ssh/auth";
 import { resolveSshTarget } from "@t3tools/ssh/command";
@@ -92,7 +93,7 @@ export const resolveDesktopSshCliRunner = (
   }
   const releaseBaseUrl = env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
   return {
-    archiveVersion: environment.appVersion,
+    archiveVersion: forkUpstreamVersion(environment.appVersion), // fork: was appVersion
     ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),
   };
 };

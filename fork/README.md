@@ -87,8 +87,8 @@ Unchanged on purpose:
 
 ## Updates
 
-On Windows the in-app checker, download, and "restart to update" flow are upstream's, unchanged,
-pointed at this repository. macOS updates are manual (below).
+Windows and macOS offer updates from this repository through the in-app checker, Download,
+and Restart to Update controls. Restarting ends threads hosted by that desktop app.
 
 - `app-update.yml` in the build is `provider: github, owner: adamhalama, repo: t3code,
   channel: latest`. `T3CODE_DESKTOP_UPDATE_REPOSITORY` can override the repository at build time.
@@ -100,23 +100,21 @@ pointed at this repository. macOS updates are manual (below).
   that mirror. Remove `feedUrl` from the policy on machines that run the fork.
 - electron-updater on `latest` reads GitHub's `releases/latest`, so fork releases are published,
   not prereleases, and marked latest. It downloads `latest.yml` (Windows) and the installer named
-  there. Releases also carry `latest-mac.yml` listing both Mac zips, so signed Mac builds could
-  update without a pipeline change.
+  there. macOS reads `latest-mac.yml` and downloads the ZIP for the Mac's architecture.
 - Nightly: none. The Stable/Nightly track picker in Settings is hidden
   (`FORK_HAS_NIGHTLY_UPDATES = false`).
 - Unsigned: builds carry no `publisherName`, so the NSIS updater skips Authenticode verification
   and installs unsigned updates. `scripts/fork-desktop-build-config.test.ts` asserts this. Windows
   SmartScreen warns on the first manual install ("Windows protected your PC" → More info → Run
   anyway). Updates installed by the app are not prompted.
-- macOS: manual. Squirrel.Mac, which installs Mac updates, accepts an update only if its code
-  signature satisfies the running app's designated requirement. The fork's Mac builds have no
-  Developer ID signature (`FORK_MAC_BUILDS_SIGNED = false` in `forkIdentity.ts`), so every in-app
-  install would fail after the download. The updater is therefore off on macOS and never polls;
-  the update controls and T3 Code (Fork) > Check for Updates… say the build cannot update itself
-  and name the `releases/latest` page. To update, install the new DMG over the old app (see
-  below). Mock updates
-  (`T3CODE_DESKTOP_MOCK_UPDATES`) still run the flow for development. With Apple signing secrets
-  set, flip the constant and the upstream flow applies unchanged.
+- macOS: the fork uses a ZIP installer because Squirrel.Mac requires Developer ID signing.
+  Downloads are checked against the release's SHA-512 digest and staged beside the installed
+  app. The installer verifies the fork bundle identity and release version and clears quarantine.
+  Restart to Update stops the desktop backends, waits for the app to quit, replaces its bundle,
+  and reopens it. If replacement fails, it restores the previous bundle. The app's parent folder
+  must be writable; install it in Applications first. Installer output is in `fork-update.log`
+  under `~/Library/Application Support/t3code-fork`.
+  Older builds that say updates are manual need one manual replacement to gain this updater.
 
 ## Installing on macOS
 
@@ -211,7 +209,7 @@ Upstream files the fork changes. Every hunk is marked with a `fork:` comment; al
 | `apps/desktop/src/app/DesktopUserData.ts`                                        | +6 −5   | userData names, no upstream `Local State` fallback                                            |
 | `apps/desktop/src/backend/DesktopBackendConfiguration.ts`                        | +3      | WSL server home `~/.t3-fork`                                                                  |
 | `apps/desktop/src/wsl/DesktopWslEnvironment.ts`                                  | +7 −3   | WSL runtime cache under `~/.t3-fork`                                                          |
-| `apps/desktop/src/updates/DesktopUpdates.ts`                                     | +3 −1   | macOS updater off with a manual-update reason                                                 |
+| `apps/desktop/src/electron/ElectronUpdater.ts`                                   | small   | fork Mac ZIP installer and asynchronous install errors                                        |
 | `AGENTS.md`                                                                      | +6      | "Fork" section                                                                                |
 | Tests (8 files, `apps/desktop/src/**`, `scripts/build-desktop-artifact.test.ts`) | small   | expected values follow `forkIdentity.ts`; managed-feed update tests run as Windows            |
 

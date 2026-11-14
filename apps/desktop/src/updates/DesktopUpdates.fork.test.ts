@@ -1,4 +1,4 @@
-// fork: unsigned macOS builds report manual updates instead of failing in Squirrel.Mac.
+// fork: unsigned Mac builds use the same update controls as Windows.
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -31,13 +31,12 @@ describe("DesktopUpdates in the fork", () => {
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   };
 
-  it.effect("never checks on macOS and points to the releases page", () =>
+  it.effect("checks for releases on macOS and Windows", () =>
     Effect.gen(function* () {
       const mac = yield* configuredState("darwin", false);
-      assert.equal(mac.state.status, "disabled");
-      assert.include(mac.state.message, "https://github.com/adamhalama/t3code/releases/latest");
-      assert.isTrue(Option.isSome(mac.reason));
-      assert.equal(mac.checks, 0);
+      assert.isTrue(mac.state.enabled);
+      assert.isTrue(Option.isNone(mac.reason));
+      assert.isAbove(mac.checks, 0);
 
       const windows = yield* configuredState("win32", false);
       assert.isTrue(windows.state.enabled);

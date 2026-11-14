@@ -372,7 +372,7 @@ jobs:
           Unsigned builds for Windows x64 (\`.exe\`) and macOS on Apple Silicon (\`arm64.dmg\`) or Intel (\`x64.dmg\`). They install as "T3 Code (Fork)" next to official T3 Code.
 
           - Windows updates itself from this repository's releases. SmartScreen warns on first install: More info -> Run anyway.
-          - macOS updates by hand: download the new DMG and replace the app. Gatekeeper blocks the first launch: System Settings -> Privacy & Security -> Open Anyway, or run \`xattr -dr com.apple.quarantine "/Applications/T3 Code (Fork).app"\`.
+          - macOS: use Download and Restart to Update in the app. Older builds that require manual updates need one DMG install over the existing app first. Gatekeeper blocks the first launch: System Settings -> Privacy & Security -> Open Anyway, or run \`xattr -dr com.apple.quarantine "/Applications/T3 Code (Fork).app"\`.
 
           See [fork/README.md](https://github.com/$GITHUB_REPOSITORY/blob/fork/main/fork/README.md).
           EOF

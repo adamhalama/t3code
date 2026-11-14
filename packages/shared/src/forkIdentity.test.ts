@@ -2,7 +2,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { cliReleaseChannelOf, desktopUpdateChannelOf } from "./cliRelease.ts";
-import { forkDesktopDisplayName, isForkVersion, parseForkVersion } from "./forkIdentity.ts";
+import {
+  forkDesktopDisplayName,
+  forkUpstreamVersion,
+  isForkVersion,
+  parseForkVersion,
+} from "./forkIdentity.ts";
 import { compareSemverVersions } from "./semver.ts";
 
 describe("forkIdentity", () => {
@@ -14,6 +19,8 @@ describe("forkIdentity", () => {
     expect(isForkVersion("0.1.7-fork.1.2")).toBe(false);
     expect(isForkVersion("0.1.7-nightly.20260101.1")).toBe(false);
     expect(isForkVersion("v0.1.7-fork.1")).toBe(false);
+    expect(forkUpstreamVersion("0.1.9-fork.1")).toBe("0.1.9");
+    expect(forkUpstreamVersion("0.1.9")).toBe("0.1.9");
   });
 
   it("orders fork versions so each release is newer than the last", () => {

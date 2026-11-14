@@ -125,7 +125,6 @@ import { useRecentThreadRowState } from "../../fork/recentThreads/recentThreadsS
 import {
   RecentThreadRowBadge,
   recentThreadRowClassName,
-  recentThreadRowHasBadge,
 } from "../../fork/recentThreads/RecentThreadRowBadge";
 
 // The fields thread rows show. Provider status pushes refresh `checkedAt`,
@@ -961,16 +960,17 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const snoozeMenuOpen = snoozeMenuOpenRaw && showSnoozeButton;
   // fork: while the Ctrl+Tab switcher is open its number badge takes the time slot
   const jumpHintLabel = snoozeMenuOpen || recentSwitch !== null ? null : props.jumpLabel;
-  const recentBadge = (
-    <RecentThreadRowBadge
-      state={recentSwitch}
-      statusIcon={
-        topStatus ? (
-          <TopStatusIcon icon={topStatus.icon} className={cn("size-3.5", topStatus.className)} />
-        ) : null
-      }
-    />
-  );
+  const recentBadge =
+    recentSwitch === null ? null : (
+      <RecentThreadRowBadge
+        state={recentSwitch}
+        statusIcon={
+          topStatus ? (
+            <TopStatusIcon icon={topStatus.icon} className={cn("size-3.5", topStatus.className)} />
+          ) : null
+        }
+      />
+    );
   const handlePrClick = (event: ReactMouseEvent<HTMLElement>, targetUrl?: string) => {
     const url = targetUrl ?? pr?.url ?? currentLinkedPr?.url;
     if (!url) return;
@@ -1303,7 +1303,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   className={cn(
                     "relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end",
                     props.sweepAction !== null && "hidden",
-                    (jumpHintLabel || recentThreadRowHasBadge(recentSwitch)) && // fork
+                    (jumpHintLabel || recentSwitch !== null) && // fork
                       JUMP_HINT_SLOT_CLASS_NAME,
                   )}
                 >
@@ -1492,7 +1492,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   className={cn(
                     "group/sidebar-status-slot relative ml-auto flex h-5 min-w-8 shrink-0 items-stretch justify-end text-xs",
                     props.sweepAction !== null && "hidden",
-                    (jumpHintLabel || recentThreadRowHasBadge(recentSwitch)) && // fork
+                    (jumpHintLabel || recentSwitch !== null) && // fork
                       JUMP_HINT_SLOT_CLASS_NAME,
                   )}
                 >

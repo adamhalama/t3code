@@ -1,13 +1,23 @@
 /**
  * The most-recently-used thread list behind the Ctrl+Tab switcher.
  *
- * Entries are scoped thread keys (`environmentId:threadId`), newest first. The
- * list is per client and lives in local storage; it is not synced.
+ * Entries are scoped thread keys (`environmentId:threadId`), newest first, each
+ * with the last time it was the open thread. The list lives in memory only, so
+ * it starts empty with every app start or reload.
  */
 
-export const RECENT_THREADS_STORAGE_KEY = "t3code:fork:recent-threads:v1";
 const RECENT_THREADS_LIST_COLLAPSED_STORAGE_KEY = "t3code:fork:recent-threads:list-collapsed:v1";
+const RECENT_THREADS_TIMEOUT_STORAGE_KEY = "t3code:fork:recent-threads:timeout-minutes:v1";
 export const RECENT_THREADS_CAP = 50;
+export const DEFAULT_RECENT_THREADS_TIMEOUT_MINUTES = 30;
+/** 0 keeps threads until they fall off the cap. */
+export const RECENT_THREADS_TIMEOUT_OPTIONS = [0, 15, 30, 60, 120] as const;
+
+export interface RecentThreadEntry {
+  readonly key: string;
+  /** Epoch ms when this thread was last the open thread. */
+  readonly at: number;
+}
 
 export interface RecentThreadCandidate {
   readonly archivedAt: string | null;
@@ -16,31 +26,57 @@ export interface RecentThreadCandidate {
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
-/** Moves `key` to the front, drops duplicates, and keeps at most `cap` entries. */
-export function touchRecentThread(
-  keys: readonly string[],
-  key: string,
+/**
+ * Records a route change from `previousKey` to `nextKey` (either may be null for
+ * non-thread routes): the thread left is stamped `now`, the one opened moves to
+ * the front with `now`.
+ */
+export function recordRecentThreadVisit(
+  entries: readonly RecentThreadEntry[],
+  previousKey: string | null,
+  nextKey: string | null,
+  now: number,
   cap = RECENT_THREADS_CAP,
-): readonly string[] {
-  if (keys[0] === key && keys.length <= cap && new Set(keys).size === keys.length) return keys;
-  const next = [key];
-  for (const existing of keys) {
+): readonly RecentThreadEntry[] {
+  const next: RecentThreadEntry[] = nextKey === null ? [] : [{ key: nextKey, at: now }];
+  for (const entry of entries) {
     if (next.length >= cap) break;
-    if (existing !== key && !next.includes(existing)) next.push(existing);
+    if (entry.key === nextKey) continue;
+    next.push(entry.key === previousKey ? { key: entry.key, at: now } : entry);
   }
   return next;
 }
 
-/** Drops threads that were deleted or archived. Unknown threads stay: their environment may not have loaded yet. */
-export function pruneRecentThreads(
-  keys: readonly string[],
+function isSwitchable(thread: RecentThreadCandidate | null): boolean {
+  return thread !== null && thread.archivedAt === null && thread.deletedAt === null;
+}
+
+/**
+ * Drops archived and deleted threads, and threads left longer than `timeoutMs`
+ * ago. The open thread and the switchable one before it always stay, so a tap
+ * can always go back.
+ */
+export function expireRecentThreads(
+  entries: readonly RecentThreadEntry[],
+  currentKey: string | null,
+  now: number,
+  timeoutMs: number,
   lookup: (key: string) => RecentThreadCandidate | null,
-): readonly string[] {
-  const kept = keys.filter((key) => {
-    const thread = lookup(key);
-    return thread === null || (thread.archivedAt === null && thread.deletedAt === null);
+): readonly RecentThreadEntry[] {
+  let previousKept = false;
+  const kept = entries.filter((entry) => {
+    if (entry.key === currentKey) return true;
+    const thread = lookup(entry.key);
+    // Unknown threads may belong to an environment that has not loaded yet.
+    if (thread !== null && !isSwitchable(thread)) return false;
+    if (!previousKept && thread !== null) {
+      previousKept = true;
+      return true;
+    }
+    // A clock set back leaves `at` in the future; count that as just now.
+    return timeoutMs <= 0 || now - Math.min(entry.at, now) <= timeoutMs;
   });
-  return kept.length === keys.length ? keys : kept;
+  return kept.length === entries.length ? entries : kept;
 }
 
 /**
@@ -48,38 +84,15 @@ export function pruneRecentThreads(
  * archived, with the open thread first.
  */
 export function resolveRecentThreadList(
-  keys: readonly string[],
+  entries: readonly RecentThreadEntry[],
   currentKey: string | null,
   lookup: (key: string) => RecentThreadCandidate | null,
 ): readonly string[] {
-  const ordered = currentKey === null ? keys : touchRecentThread(keys, currentKey, Infinity);
-  return ordered.filter((key) => {
-    const thread = lookup(key);
-    return thread !== null && thread.archivedAt === null && thread.deletedAt === null;
-  });
-}
-
-export function readRecentThreadKeys(storage: StorageLike | null): readonly string[] {
-  try {
-    const raw = storage?.getItem(RECENT_THREADS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const keys = parsed.filter(
-      (entry): entry is string => typeof entry === "string" && entry.includes(":"),
-    );
-    return [...new Set(keys)].slice(0, RECENT_THREADS_CAP);
-  } catch {
-    return [];
+  const keys = currentKey === null ? [] : [currentKey];
+  for (const entry of entries) {
+    if (entry.key !== currentKey) keys.push(entry.key);
   }
-}
-
-export function writeRecentThreadKeys(storage: StorageLike | null, keys: readonly string[]): void {
-  try {
-    storage?.setItem(RECENT_THREADS_STORAGE_KEY, JSON.stringify(keys));
-  } catch {
-    // Storage can be full or disabled; the list then lives for this session only.
-  }
+  return keys.filter((key) => isSwitchable(lookup(key)));
 }
 
 export function readListCollapsed(storage: StorageLike | null): boolean {
@@ -93,6 +106,25 @@ export function readListCollapsed(storage: StorageLike | null): boolean {
 export function writeListCollapsed(storage: StorageLike | null, collapsed: boolean): void {
   try {
     storage?.setItem(RECENT_THREADS_LIST_COLLAPSED_STORAGE_KEY, collapsed ? "true" : "false");
+  } catch {
+    // Not remembered when storage is unavailable.
+  }
+}
+
+export function readTimeoutMinutes(storage: StorageLike | null): number {
+  try {
+    const value = Number(storage?.getItem(RECENT_THREADS_TIMEOUT_STORAGE_KEY) || Number.NaN);
+    return RECENT_THREADS_TIMEOUT_OPTIONS.some((option) => option === value)
+      ? value
+      : DEFAULT_RECENT_THREADS_TIMEOUT_MINUTES;
+  } catch {
+    return DEFAULT_RECENT_THREADS_TIMEOUT_MINUTES;
+  }
+}
+
+export function writeTimeoutMinutes(storage: StorageLike | null, minutes: number): void {
+  try {
+    storage?.setItem(RECENT_THREADS_TIMEOUT_STORAGE_KEY, String(minutes));
   } catch {
     // Not remembered when storage is unavailable.
   }

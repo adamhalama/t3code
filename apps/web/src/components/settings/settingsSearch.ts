@@ -461,6 +461,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/general",
     searchTerms: ["hide fold running monitoring threads inbox sidebar shelf"],
   },
+  // fork: Ctrl+Tab recent thread switcher
+  {
+    id: "recent-threads-timeout",
+    title: "Recent threads timeout",
+    to: "/settings/general",
+    searchTerms: ["ctrl tab switcher recent threads expire forget minutes mru"],
+  },
   {
     id: "boring-sidebar",
     title: "Boring sidebar (group by project)",

@@ -154,7 +154,9 @@ pull requests into `fork/main` (build only), `workflow_dispatch`, and `workflow_
    `.env.example`.
 3. `desktop` is a matrix over upstream's `release-desktop.yml`. Linux x64 is always built,
    because its CLI archive is the WSL runtime that the Windows installer embeds. Windows x64 is
-   cross-built on Linux and its packaged natives are verified on `windows-2025`. macOS arm64 and
+   cross-built on Linux and its packaged natives are verified on `windows-2025`. Both Linux jobs
+   run on `ubuntu-24.04`, as upstream's do, because the build rejects natives that need a glibc
+   newer than 2.39 (`scripts/linux-glibc.ts`). macOS arm64 and
    x64 build on GitHub's Apple Silicon `macos-26` runner (x64 under Rosetta, as upstream does),
    each as a DMG plus the zip the updater feed lists; arm64 also opens the packaged app
    (launch check). No secrets are passed, so nothing is signed: the reusable workflow logs

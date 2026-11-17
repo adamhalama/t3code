@@ -191,8 +191,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux builds stay on Ubuntu 24.04 like release.yml: the packaged natives must not
+          # need a glibc newer than scripts/linux-glibc.ts allows (2.39).
           - label: Linux x64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             verify_runner: ""
             platform: linux
             target: AppImage
@@ -203,7 +205,7 @@ jobs:
             # The launch check runs the AppImage as `t3code`; the fork names it t3code-fork.
             launch_check: false
           - label: Windows x64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             verify_runner: windows-2025
             platform: win
             target: nsis

@@ -54,10 +54,8 @@ jobs:
           ref: fork/main
           fetch-depth: 0
           token: ${{ secrets.FORK_SYNC_TOKEN || github.token }}
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
+          # No sparse checkout: it makes a blob:none partial clone, and the rebase then fails
+          # fetching fork blobs on demand instead of reporting the real conflicts.
 
       - name: Configure git
         shell: bash

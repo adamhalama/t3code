@@ -1,6 +1,7 @@
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { recentDraftKey } from "./recentThreadsMru";
 import {
   isHiddenInSidebar,
   recentSwitcher,
@@ -79,6 +80,87 @@ describe("isHiddenInSidebar", () => {
 });
 
 describe("recent threads store", () => {
+  it("keeps the active draft current through its automatic redirect", async () => {
+    const { recentSwitcher, recordRouteThread, resolveRecentThreads, subscribeRecentDrafts } =
+      await freshStore();
+    const { DraftId, useComposerDraftStore } = await import("../../composerDraftStore");
+    const drafts = useComposerDraftStore.getState();
+    const draftId = DraftId.make("unsent");
+    const draftKey = recentDraftKey(draftId);
+    drafts.setProjectDraftThreadId(
+      { environmentId: env, projectId: ProjectId.make("p1") },
+      draftId,
+      {
+        threadId: b.id,
+      },
+    );
+    const unsubscribe = subscribeRecentDrafts();
+    try {
+      recordRouteThread("env:old", lookup, 0);
+      recordRouteThread("env:a", lookup, minute);
+      recordRouteThread(draftKey, lookup, 2 * minute);
+      drafts.markDraftThreadPromoting(draftId);
+      // The thread a promoting draft lands on is still that draft's entry.
+      recordRouteThread("env:b", lookup, 3 * minute);
+      expect(resolveRecentThreads(lookup, 3 * minute)).toEqual({
+        items: [draftKey, "env:a", "env:old"],
+        currentKey: draftKey,
+      });
+      recentSwitcher.press({
+        direction: 1,
+        items: [draftKey, "env:a", "env:old"],
+        currentKey: draftKey,
+        canHold: true,
+      });
+      drafts.finalizePromotedDraftThread(draftId);
+      expect(recentSwitcher.getState()).toMatchObject({
+        phase: "pending",
+        items: ["env:b", "env:a", "env:old"],
+        selected: 1,
+      });
+      recentSwitcher.cancel();
+      expect(resolveRecentThreads(lookup, 4 * minute).currentKey).toBe("env:b");
+      recordRouteThread("env:b", lookup, 5 * minute);
+      expect(resolveRecentThreads(lookup, 5 * minute)).toEqual({
+        items: ["env:b", "env:a", "env:old"],
+        currentKey: "env:b",
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("does not prune a missing draft until hydration finishes and removes discarded drafts", async () => {
+    const { recordRouteThread, resolveRecentThreads, subscribeRecentDrafts } = await freshStore();
+    const { DraftId, useComposerDraftStore } = await import("../../composerDraftStore");
+    using hydrated = vi.spyOn(useComposerDraftStore.persist, "hasHydrated").mockReturnValue(false);
+    const unsubscribe = subscribeRecentDrafts();
+    try {
+      const missingKey = recentDraftKey(DraftId.make("missing"));
+      recordRouteThread(missingKey, lookup, 0);
+      expect(resolveRecentThreads(lookup, minute).currentKey).toBe(missingKey);
+      hydrated.mockReturnValue(true);
+      await useComposerDraftStore.persist.rehydrate();
+      expect(resolveRecentThreads(lookup, minute)).toEqual({ items: [], currentKey: null });
+
+      const draftId = DraftId.make("discarded");
+      const drafts = useComposerDraftStore.getState();
+      drafts.setProjectDraftThreadId(
+        { environmentId: env, projectId: ProjectId.make("p1") },
+        draftId,
+        {
+          threadId: b.id,
+        },
+      );
+      recordRouteThread(recentDraftKey(draftId), lookup, 2 * minute);
+      recordRouteThread("env:a", lookup, 3 * minute);
+      drafts.clearDraftThread(draftId);
+      expect(resolveRecentThreads(lookup, 4 * minute).items).toEqual(["env:a"]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("dates a thread by when it was left and expires the rest after 30 minutes", async () => {
     const { recordRouteThread, resolveRecentThreads } = await freshStore();
     recordRouteThread("env:old", lookup, 0);

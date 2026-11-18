@@ -1,8 +1,6 @@
 import { discardComposerDraft } from "../../lib/discardComposerDraft";
 import type { ContextMenuSource } from "@t3tools/contracts";
 import { contextMenuSourceOf } from "../../contextMenuSource";
-import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
-import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import { SquarePenIcon, XIcon } from "lucide-react";
 import {
   memo,
@@ -24,6 +22,14 @@ import {
   type DraftSessionState,
 } from "../../composerDraftStore";
 import { draftPenClassName, draftSurfaceClassName } from "./SidebarThreadRow";
+// fork: share draft previews and sidebar markers with Ctrl+Tab
+import { draftPreview } from "../../fork/recentThreads/draftPreview";
+import { recentDraftKey } from "../../fork/recentThreads/recentThreadsMru";
+import { useRecentThreadRowState } from "../../fork/recentThreads/recentThreadsStore";
+import {
+  RecentThreadRowBadge,
+  recentThreadRowClassName,
+} from "../../fork/recentThreads/RecentThreadRowBadge";
 
 const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   draftId: DraftId;
@@ -40,24 +46,10 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   ) => void;
 }) {
   const { composer, draftId, onContextMenu, onDiscard, onNavigate } = props;
-  const promptPreview =
-    assistantCitationsToPlainText(
-      replaceComposerContextReferences(composer.prompt, (occurrence) => occurrence.label),
-    )
-      .trim()
-      .split("\n", 1)[0] ?? "";
-  // images mirrors persistedAttachments once rehydration finishes; before
-  // that only the persisted list is populated, hence max not sum.
-  const attachmentCount =
-    Math.max(composer.images.length, composer.persistedAttachments.length) +
-    composer.files.length +
-    composer.terminalContexts.length +
-    composer.previewAnnotations.length +
-    composer.reviewComments.length;
-  const preview =
-    promptPreview.length > 0
-      ? promptPreview
-      : `${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}`;
+  // fork: share the preview and identify the row in the switcher
+  const preview = draftPreview(composer);
+  const recentKey = recentDraftKey(draftId);
+  const recentRow = useRecentThreadRowState(recentKey);
   const accessibility = resolveSidebarRowAccessibility({
     title: preview,
     statusLabel: "Unsent draft",
@@ -90,16 +82,19 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   };
   return (
     <li className="list-none py-0.5">
+      {/* fork: connect the draft row to the switcher */}
       <div
         role="button"
         tabIndex={0}
         data-sidebar-row={`draft:${draftId}`}
+        data-recent-switch-commit={recentKey}
         aria-label={accessibility.label}
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
           "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
+          recentThreadRowClassName(recentRow), // fork
         )}
         onClick={handleActivate}
         onContextMenu={handleContextMenu}
@@ -115,21 +110,26 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
               {props.projectDisplayName}
             </span>
             <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-end">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label="Discard draft"
-                      onClick={handleDiscard}
-                      className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
-                  }
-                />
-                <TooltipPopup side="top">Discard draft</TooltipPopup>
-              </Tooltip>
+              {/* fork: the recent number takes the discard slot while switching */}
+              {recentRow !== null ? (
+                <RecentThreadRowBadge state={recentRow} />
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label="Discard draft"
+                        onClick={handleDiscard}
+                        className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    }
+                  />
+                  <TooltipPopup side="top">Discard draft</TooltipPopup>
+                </Tooltip>
+              )}
             </span>
           </div>
           <div className="mt-0.5 truncate text-sm font-medium text-foreground/90">{preview}</div>

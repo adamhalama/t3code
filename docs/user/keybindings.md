@@ -189,11 +189,11 @@ through the pages you have visited, like a browser's back and forward buttons.
 
 `thread.recent.next` (`ctrl+tab` by default, on every platform) and
 `thread.recent.previous` (`ctrl+shift+tab`) switch between recently opened
-threads. A quick tap opens the previous thread, so repeated taps toggle between
+threads, including unsent drafts. A quick tap opens the previous thread, so repeated taps toggle between
 the two most recent. Hold Ctrl to see the list: press Tab or Shift+Tab to move,
 release Ctrl to open the selected thread, or press Escape to stay. While the
 list is open, `ctrl+l` folds it into the sidebar chip and back. The list skips
-archived and deleted threads and starts empty each time the app starts. Threads
+archived and deleted threads and discarded drafts. It starts empty each time the app starts. Threads
 you left more than 30 minutes ago drop out of it, except the one you came from;
 change this under **Settings → General → Recent threads timeout**.
 

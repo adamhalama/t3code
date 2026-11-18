@@ -21,7 +21,7 @@ Switch between recently used threads the way VS Code switches between recent edi
 - Ctrl+L, or clicking the header chip, collapses or expands the list. The choice is remembered.
 - Each row shows the thread title and its project. It also shows thread status where T3 already shows it in the sidebar: running, waiting for approval, unread, error.
 - With only one thread in the list, Ctrl+Tab does nothing.
-- Threads that were deleted or archived are left out of the list.
+- Unsent drafts follow the same recency and timeout rules and show their composer preview. Sending the first message replaces the draft with the resulting thread without changing its position or recency. Discarded drafts and deleted or archived threads are left out.
 
 ## Keybinding
 
@@ -32,5 +32,5 @@ Switch between recently used threads the way VS Code switches between recent edi
 ## Scope
 
 - Supported in the desktop app. In a normal browser tab the browser keeps Ctrl+Tab for itself, so users must rebind the command there.
-- The recent list is kept in memory per window and follows the existing thread identity (environment + thread id). It starts empty on every app start or reload and is not synced through the server. The timeout and the folded-list choice are kept in local storage.
+- The recent list is kept in memory per window, keyed by environment and thread ID for server threads or by draft ID for unsent drafts. It starts empty on every app start or reload and is not synced through the server. The timeout and the folded-list choice are kept in local storage.
 - No changes on mobile.

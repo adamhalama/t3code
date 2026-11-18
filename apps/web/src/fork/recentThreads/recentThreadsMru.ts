@@ -1,10 +1,12 @@
 /**
  * The most-recently-used thread list behind the Ctrl+Tab switcher.
  *
- * Entries are scoped thread keys (`environmentId:threadId`), newest first, each
+ * Entries are scoped thread keys or draft keys, newest first, each
  * with the last time it was the open thread. The list lives in memory only, so
  * it starts empty with every app start or reload.
  */
+
+import type { DraftId } from "../../composerDraftStore";
 
 const RECENT_THREADS_LIST_COLLAPSED_STORAGE_KEY = "t3code:fork:recent-threads:list-collapsed:v1";
 const RECENT_THREADS_TIMEOUT_STORAGE_KEY = "t3code:fork:recent-threads:timeout-minutes:v1";
@@ -25,6 +27,37 @@ export interface RecentThreadCandidate {
 }
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
+
+// Scoped thread keys cannot start with a colon.
+const DRAFT_KEY_PREFIX = ":draft:";
+
+export function recentDraftKey(draftId: DraftId): string {
+  return `${DRAFT_KEY_PREFIX}${draftId}`;
+}
+
+export function parseRecentDraftKey(key: string): DraftId | null {
+  return key.startsWith(DRAFT_KEY_PREFIX) ? (key.slice(DRAFT_KEY_PREFIX.length) as DraftId) : null;
+}
+
+/** Replacements keep the source entry's slot and timestamp, even if the destination was visited. */
+export function reconcileRecentThreadEntries(
+  entries: readonly RecentThreadEntry[],
+  resolveKey: (key: string) => string | null,
+): readonly RecentThreadEntry[] {
+  const resolved = entries.map((entry) => ({ entry, key: resolveKey(entry.key) }));
+  if (resolved.every(({ entry, key }) => entry.key === key)) return entries;
+
+  const replacements = new Map<string, RecentThreadEntry>();
+  for (const { entry, key } of resolved) {
+    if (key !== null && key !== entry.key && !replacements.has(key)) replacements.set(key, entry);
+  }
+  return resolved.flatMap(({ entry, key }) => {
+    if (key === null) return [];
+    const source = replacements.get(key);
+    if (source !== undefined) return source === entry ? [{ ...entry, key }] : [];
+    return [entry];
+  });
+}
 
 /**
  * Records a route change from `previousKey` to `nextKey` (either may be null for

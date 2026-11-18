@@ -5,7 +5,7 @@ Live mock: https://adamhalama.github.io/t3code/mru-tab-switcher/combined/4.html
 
 ## What the user sees while Ctrl is held
 
-- **Sidebar highlight (always on).** The thread that will open is highlighted in the sidebar. Other thread rows dim. Each thread in the recent list shows its recent-order number (1, 2, 3...) in place of the time. When the selection is inside a collapsed project or section, that group shows just enough to reveal the selected thread, and the sidebar scrolls it into view.
+- **Sidebar highlight (always on).** The thread that will open is highlighted in the sidebar when it has a row there. Other thread and draft rows dim. Each recent row shows its number (1, 2, 3...) in place of the time or draft discard button. When a server thread is inside a collapsed project or section, that group shows just enough to reveal it, and the sidebar scrolls it into view.
 - **Header chip.** The sidebar's Search row turns into a `Recent 2/9` chip for as long as the switcher is open.
 - **List popover (expanded by default).** A compact list opens beside the chip, pointing at it. One row per recent thread: number, title, project, status icon, time. The selected row matches the sidebar selection at every step.
 - **Collapsed form.** Clicking the chip, or pressing Ctrl+L, folds the list back into the chip. The chip then reads `2/9 · <selected title>`. Clicking it again, or Ctrl+L, expands the list.
@@ -55,6 +55,7 @@ Upstream files touched, from `git diff --numstat fork/main -- ':!fork' ':!apps/w
 | `apps/web/src/components/Sidebar.tsx`                           |  55 |  12 | Reveals the selected thread in a closed shelf or folder; hides jump hints        |
 | `apps/web/src/components/sidebar/SidebarThreadHeader.tsx`       |   4 |   1 | The chip over the Search row                                                     |
 | `apps/web/src/components/sidebar/SidebarThreadRow.tsx`          |  27 |   3 | Selected-row highlight and number badge                                          |
+| `apps/web/src/components/sidebar/SidebarDraftBlock.tsx`         |  35 |  35 | Shared draft preview, selected-row highlight and number badge                    |
 | `apps/web/src/components/settings/SettingsPanels.tsx`           |   2 |   0 | Mounts the timeout row                                                           |
 | `apps/web/src/components/settings/settingsSearch.ts`            |   7 |   0 | Makes the timeout row searchable                                                 |
 | `apps/web/src/components/ReopenClosedViewShortcut.tsx`          |   3 |   0 | Forwards the commands out of a focused preview                                   |
@@ -62,7 +63,7 @@ Upstream files touched, from `git diff --numstat fork/main -- ':!fork' ':!apps/w
 | `apps/desktop/src/preview/Manager.ts`                           |   4 |   1 | Focuses the app when a preview forwards the commands, so Ctrl's release is heard |
 | `docs/user/keybindings.md`                                      |  19 |   0 | User docs and the browser tab limitation                                         |
 
-Total: 14 files, +152 / -17. The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.
+The server needs no code change: startup already adds missing default keybindings to an existing `keybindings.json`.
 
 ## Known limitations
 

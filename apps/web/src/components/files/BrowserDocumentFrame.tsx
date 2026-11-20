@@ -160,13 +160,27 @@ export function BrowserDocumentFrame(props: {
       className="min-h-0 flex-1"
     />
   ) : (
-    <FileDocument key={key} src={props.src} title={props.title} />
+    <FileDocument
+      key={props.documentId ?? key}
+      revision={key}
+      src={props.src}
+      title={props.title}
+    />
   );
 }
 
-// URL renewals must not discard form input or scroll; a new key mounts a fresh document.
-function FileDocument(props: { readonly src: string; readonly title: string }) {
-  const [src] = useState(props.src);
+// URL renewals must not discard form input or scroll. A new revision navigates the same frame, so
+// window.name carries over and a page can keep state that its opaque origin cannot store.
+function FileDocument(props: {
+  readonly src: string;
+  readonly title: string;
+  readonly revision: string;
+}) {
+  const [current, setCurrent] = useState({ src: props.src, revision: props.revision });
+  if (current.revision !== props.revision) {
+    setCurrent({ src: props.src, revision: props.revision });
+  }
+  const { src } = current;
   return (
     <iframe
       src={src}

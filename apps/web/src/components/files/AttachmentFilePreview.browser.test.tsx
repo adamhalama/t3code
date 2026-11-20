@@ -1590,6 +1590,40 @@ it("loads an edited HTML file outside the workspace from a renewed URL", async (
   );
 });
 
+it("keeps an edited workspace HTML page in the same frame so window.name survives", async () => {
+  const { WorkspaceBrowserPreview } = await import("./FilePreviewPanel");
+  const preview = (mutation: string) => (
+    <WorkspaceBrowserPreview
+      environmentId={EnvironmentId.make("test")}
+      threadRef={{ environmentId: EnvironmentId.make("test"), threadId: ThreadId.make("test") }}
+      draft={false}
+      workspaceRoot="/repo"
+      absolutePath="/repo/Questions.html"
+      title="Questions"
+      workspaceMutationId={mutation}
+    />
+  );
+  const pageUrl = (label: string) =>
+    `data:text/html,${encodeURIComponent(
+      `<script>parent.postMessage({ label: ${JSON.stringify(label)}, name: window.name }, "*");` +
+        `window.name = ${JSON.stringify(label)};</script>`,
+    )}`;
+  const seen: unknown[] = [];
+  const onMessage = (event: MessageEvent) => seen.push(event.data);
+  window.addEventListener("message", onMessage);
+  using _listener = { [Symbol.dispose]: () => window.removeEventListener("message", onMessage) };
+
+  assetUrlState.mockReturnValue({ _tag: "Success", url: pageUrl("first"), expiresAt: 0 });
+  await using screen = await render(preview("one"));
+  await vi.waitFor(() => expect(seen).toContainEqual({ label: "first", name: "" }));
+  const opened = screen.container.querySelector("iframe");
+
+  assetUrlState.mockReturnValue({ _tag: "Success", url: pageUrl("second"), expiresAt: 0 });
+  await screen.rerender(preview("two"));
+  await vi.waitFor(() => expect(seen).toContainEqual({ label: "second", name: "first" }));
+  expect(screen.container.querySelector("iframe")).toBe(opened);
+});
+
 function planningPdf(
   titles = ["Quarterly outlook", "Delivery milestones", "Budget and risks"],
   firstHeight = 140,

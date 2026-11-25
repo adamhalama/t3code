@@ -148,6 +148,11 @@ import type { useQueuedRunEdit } from "./useQueuedRunEdit";
 import type { useTimelineFollow } from "./useTimelineFollow";
 import type { useUsageLimitsPanel } from "./useUsageLimitsPanel";
 import type { useWorktreeSetup } from "./useWorktreeSetup";
+// fork: prompt cache
+import {
+  planComposerTurnWithPromptCache,
+  type PromptCacheSendGate,
+} from "../../fork/promptCache/promptCacheSend.logic";
 
 const ENVIRONMENT_UNAVAILABLE_SEND_TOAST_TRAIL_SIZE = 3;
 
@@ -212,6 +217,7 @@ interface ComposerSendInput {
   /** `/clear` can arm a fresh session on this thread. */
   readonly freshSessionAvailable: boolean;
   readonly resumeCompactionTokens: number | null;
+  readonly promptCacheSend?: PromptCacheSendGate; // fork: prompt cache
   readonly usageLimitsKey: string | null;
   readonly usageLimitsOffered: boolean;
   readonly openUsageLimits: UsageLimitsPanel["open"];
@@ -803,13 +809,8 @@ export function useComposerSend(input: ComposerSendInput) {
       environmentContexts: composerEnvironmentContextsSnapshot,
       messageText: messageTextForSend,
     } = sendSnapshot;
-    const {
-      missingWorktreeBaseBranch,
-      baseBranchForWorktree,
-      compactBeforeSend,
-      turnDispatchMode,
-      shouldQueueBehindActiveRun,
-    } = planComposerTurn({
+    // fork: prompt cache, decides at send time and may ask before compacting a cold thread
+    const plannedTurn = planComposerTurnWithPromptCache(input.promptCacheSend, planComposerTurn, {
       messageText: messageTextForSend,
       sendQueuesBehindSetup,
       isServerThread,
@@ -824,6 +825,15 @@ export function useComposerSend(input: ComposerSendInput) {
       dispatchMode,
       freshContext: freshArm !== undefined,
     });
+    const {
+      missingWorktreeBaseBranch,
+      baseBranchForWorktree,
+      compactBeforeSend,
+      turnDispatchMode,
+      shouldQueueBehindActiveRun,
+      coldSendCancelled,
+    } = plannedTurn instanceof Promise ? await plannedTurn : plannedTurn; // fork: prompt cache
+    if (coldSendCancelled) return; // fork: prompt cache
     if (missingWorktreeBaseBranch) {
       setThreadError(threadIdForSend, "Select a base branch before sending in New worktree mode.");
       return;

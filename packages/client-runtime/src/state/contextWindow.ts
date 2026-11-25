@@ -10,13 +10,13 @@ import {
 } from "@t3tools/contracts";
 import {
   CLAUDE_RESUME_COMPACTION_NEVER_ANSWER,
-  COMPACTION_SUGGESTION_MIN_TOKENS,
   isClaudeResumeCompactionQuestion,
 } from "@t3tools/shared/claudeCompaction";
 import * as DateTime from "effect/DateTime";
 
 import { resolvePendingHandoff } from "../handoff.ts";
 import type { ThreadStructure, ThreadStructureTurnItem } from "./models.ts";
+import { isWorthWarning, promptCacheResumeCompaction } from "./promptCache.ts"; // fork: prompt cache
 
 // Fallback TTL: Claude's 1h cache plus slack.
 const CLAUDE_RESUME_COMPACTION_FALLBACK_MS = 70 * 60_000;
@@ -224,14 +224,19 @@ export function hasDismissedResumeCompaction(
 
 export function shouldOfferResumeCompaction(input: {
   readonly provider: string | null | undefined;
+  readonly model?: string | null | undefined; // fork: prompt cache lifetimes are per model
   readonly usedTokens: number | null | undefined;
   readonly updatedAt: string | null | undefined;
   readonly promptCacheTtlMs?: number | undefined;
   readonly now: string;
 }): boolean {
+  // fork: OpenCode threads take their cache lifetime from promptCache.ts
+  const forkOffer = promptCacheResumeCompaction(input);
+  if (forkOffer !== null) return forkOffer;
   if (
     input.provider !== "claudeAgent" ||
-    (input.usedTokens ?? 0) < COMPACTION_SUGGESTION_MIN_TOKENS
+    // fork: the prompt cache's size threshold
+    !isWorthWarning({ tokens: input.usedTokens ?? 0, coldCostUsd: null })
   ) {
     return false;
   }

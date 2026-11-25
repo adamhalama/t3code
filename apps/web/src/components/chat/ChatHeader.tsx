@@ -5,6 +5,7 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { PromptCacheChip } from "../../fork/promptCache/PromptCacheChip"; // fork: prompt cache
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import {
   isAtomCommandInterrupted,
@@ -399,6 +400,14 @@ export const ChatHeader = memo(function ChatHeader({
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
       {isServerThread ? <GuestShareIndicator threadRef={activeThreadRef} /> : null}
+      {/* fork: prompt cache */}
+      {isServerThread ? (
+        <PromptCacheChip
+          environmentId={activeThreadEnvironmentId}
+          threadId={activeThreadId}
+          placement="header"
+        />
+      ) : null}
     </div>
   );
 });

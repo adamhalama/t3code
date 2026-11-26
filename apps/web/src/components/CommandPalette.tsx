@@ -280,6 +280,7 @@ import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { readPullRequestListPreferences } from "~/components/pullRequest/pullRequestListPreferences";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { threadRecentUse } from "@t3tools/shared/paletteSearch";
+import { useCompactThreadPaletteItem } from "../fork/promptCache/useCompactThreadPaletteItem"; // fork: prompt cache
 
 const EMPTY_BROWSE_ENTRIES: FilesystemBrowseResult["entries"] = [];
 const ADD_PROJECT_ENTRY_GROUP = "add-project";
@@ -497,6 +498,10 @@ function OpenCommandPaletteDialog(props: {
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(referenceThreadRef);
   const activeThreadServerConfig = useServerConfigs().get(
     activeThread?.environmentId ?? ("" as EnvironmentId),
+  );
+  // fork: prompt cache
+  const compactThreadItem = useCompactThreadPaletteItem(
+    activeThread ? scopeThreadRef(activeThread.environmentId, activeThread.id) : null,
   );
   const canShareActiveThreadWithGuest = useAtomValue(
     canShareWithGuestAtom(activeThread?.environmentId ?? ("" as EnvironmentId)),
@@ -1534,6 +1539,7 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
+  if (compactThreadItem) actionItems.push(compactThreadItem); // fork: prompt cache
 
   actionItems.push({
     kind: "action",

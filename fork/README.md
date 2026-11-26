@@ -213,8 +213,17 @@ Upstream files the fork changes. Every hunk is marked with a `fork:` comment; al
 | `apps/desktop/src/wsl/DesktopWslEnvironment.ts`                                  | +7 −3   | WSL runtime cache under `~/.t3-fork`                                                          |
 | `apps/desktop/src/electron/ElectronUpdater.ts`                                   | small   | fork Mac ZIP installer and asynchronous install errors                                        |
 | `AGENTS.md`                                                                      | +6      | "Fork" section                                                                                |
+| `packages/client-runtime/package.json`                                           | +4      | export `./state/prompt-cache`                                                                 |
+| `packages/client-runtime/src/state/contextWindow.ts`                             | +7 −2   | resume-compaction gate asks the prompt cache lifetimes and size threshold                     |
+| `apps/web/src/components/ChatView.tsx`                                           | +27 −2  | prompt cache: gate as a function of time, send model, send gate and dialog                    |
+| `apps/web/src/components/chat/useComposerSend.ts`                                | +17 −7  | prompt cache: plans the turn through the send gate                                            |
+| `apps/web/src/components/chat/ChatComposer.tsx`                                  | +9      | prompt cache chip                                                                             |
+| `apps/web/src/components/chat/ChatHeader.tsx`                                    | +9      | prompt cache badge                                                                            |
+| `apps/web/src/components/CommandPalette.tsx`                                     | +6      | "Compact thread" entry                                                                        |
 | Tests (8 files, `apps/desktop/src/**`, `scripts/build-desktop-artifact.test.ts`) | small   | expected values follow `forkIdentity.ts`; managed-feed update tests run as Windows            |
+| `packages/client-runtime/src/state/contextWindow.test.ts`                        | +45 −2  | OpenCode rows for the resume-compaction gate, 100K threshold row                              |
 
 Fork-owned files (no upstream conflicts possible): `fork/**`, `.github/workflows/fork-*.yml`,
 `scripts/fork-*`, `packages/shared/src/forkIdentity*.ts`,
-`apps/desktop/src/**/*.fork.test.ts`.
+`apps/desktop/src/**/*.fork.test.ts`, `apps/web/src/fork/**`,
+`packages/client-runtime/src/state/promptCache*.ts`.

@@ -403,6 +403,9 @@ const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PROVIDER_MODELS: ServerProvider["models"] = [];
 const EMPTY_USAGE_LIMIT_SOURCES: UsageLimitSourceSnapshots = [];
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
+import { usePromptCacheColdSend } from "../fork/promptCache/usePromptCacheColdSend"; // fork: prompt cache
+import { promptCacheModel } from "@t3tools/client-runtime/state/prompt-cache"; // fork: prompt cache
+import { toServerClock } from "@t3tools/client-runtime/clock"; // fork: prompt cache
 
 const EMPTY_FEEDBACK_SUBMISSIONS: ReadonlyArray<CodexFeedbackSubmission> = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
@@ -2524,7 +2527,8 @@ export default function ChatView(props: ChatViewProps) {
     pendingUserInputs.length > 0;
   const compactDisabled = compactThreadUnavailable;
   // The context window is the current conversation's, so a handoff destination never inherits it.
-  const resumeCompactionTokens =
+  // fork: prompt cache, a function of time so a send can decide at its own moment
+  const resumeCompactionTokensAt = (now: string) =>
     activeContextWindow &&
     pendingHandoff === null &&
     resolveIdleCompaction(
@@ -2538,13 +2542,23 @@ export default function ChatView(props: ChatViewProps) {
     multipleModelSelections === null &&
     shouldOfferResumeCompaction({
       provider: selectedProvider,
+      // fork: prompt cache, the model whose cache the next send reuses
+      model: promptCacheModel({
+        turns: serverProjection?.providerTurns ?? [],
+        usage: activeThreadLiveTokenUsage,
+        sendModel: pendingHandoffSelection?.model,
+      }),
       usedTokens: activeContextWindow.usedTokens,
       updatedAt: activeContextWindow.updatedAt,
       promptCacheTtlMs: activeThreadLiveTokenUsage?.promptCacheTtlMs,
-      now: `${nowMinute}:00.000Z`,
+      now,
     })
       ? activeContextWindow.usedTokens
       : null;
+  // fork: prompt cache, the same server clock the send decides with
+  const resumeCompactionTokens = resumeCompactionTokensAt(
+    new Date(toServerClock(environmentId, Date.parse(`${nowMinute}:00.000Z`))).toISOString(),
+  );
   const [fullHistoryThreadKeys, setFullHistoryThreadKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -2927,6 +2941,14 @@ export default function ChatView(props: ChatViewProps) {
     scrollToEnd,
     setThreadError,
   });
+  // fork: prompt cache, asks before a send compacts a thread whose cache went cold
+  const promptCacheSend = usePromptCacheColdSend({
+    threadRef: routeThreadRef,
+    threadKey: routeThreadKey,
+    resumeCompactionTokensAt,
+    onCompactContext,
+    compactDisabled,
+  });
   const { onSend } = useComposerSend({
     environmentId,
     routeThreadKey,
@@ -2969,6 +2991,7 @@ export default function ChatView(props: ChatViewProps) {
     keepFullHistory,
     freshSessionAvailable: freshSessionCommandAvailable,
     resumeCompactionTokens,
+    promptCacheSend: promptCacheSend.gate, // fork: prompt cache
     usageLimitsKey,
     usageLimitsOffered,
     openUsageLimits,
@@ -4061,6 +4084,8 @@ export default function ChatView(props: ChatViewProps) {
       {embedded ? null : <LinkPullRequestDialogHost />}
       <ThreadVisitWatermark threadRef={routeThreadRef} />
       <ExpandedImageDialogHost threadKey={routeThreadKey} />
+      {/* fork: prompt cache */}
+      {promptCacheSend.dialog}
     </div>
   );
   return (

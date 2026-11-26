@@ -14,7 +14,7 @@ import {
 import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
 
-import { compactBeforeSendTokens } from "./contextWindow.ts";
+import { compactBeforeSendTokens, shouldOfferResumeCompaction } from "./contextWindow.ts";
 import type { ThreadStructure } from "./models.ts";
 import { v2Projection } from "./orchestrationV2TestFixtures.ts";
 
@@ -201,7 +201,7 @@ describe("compactBeforeSendTokens", () => {
       expected: true,
     },
     { name: "within the fallback TTL", now: "2026-10-30T15:23:02.000Z", expected: false },
-    { name: "under 200K", usedTokens: 150_000, expected: false },
+    { name: "under 100K", usedTokens: 99_999, expected: false }, // fork: prompt cache threshold
     { name: "with idle compaction off", settings: { idleCompaction: "off" }, expected: false },
     {
       name: "with the Claude instance overriding idle compaction to off",
@@ -260,5 +260,48 @@ describe("compactBeforeSendTokens", () => {
     expect(compactBeforeSendTokens(sendInput(overrides as Parameters<typeof sendInput>[0]))).toBe(
       expected ? 293_611 : null,
     );
+  });
+});
+
+// fork: prompt cache
+describe("shouldOfferResumeCompaction for OpenCode", () => {
+  it.each([
+    {
+      name: "a Copilot Claude thread 4 minutes after its turn ended",
+      at: "14:27:02",
+      expected: true,
+    },
+    { name: "a Copilot Claude thread inside its cache lifetime", at: "14:27:01", expected: false },
+    {
+      name: "a Copilot GPT thread inside its cache lifetime",
+      model: "github-copilot/gpt-6.2-sol",
+      at: "14:30:00",
+      expected: false,
+    },
+    {
+      name: "a Copilot GPT thread past its cache lifetime",
+      model: "github-copilot/gpt-6.2-sol",
+      at: "14:47:02",
+      expected: true,
+    },
+    { name: "a thread under 100K", usedTokens: 99_999, at: "15:00:00", expected: false },
+    { name: "a thread of 100K", usedTokens: 100_000, at: "15:00:00", expected: true },
+    {
+      name: "a model without a known cache lifetime",
+      model: "github-copilot/gemini-3-pro",
+      at: "23:00:00",
+      expected: false,
+    },
+    { name: "a thread whose model is unknown", model: null, at: "23:00:00", expected: false },
+  ])("offers for $name: $expected", ({ model, usedTokens, at, expected }) => {
+    expect(
+      shouldOfferResumeCompaction({
+        provider: "opencode",
+        model: model === undefined ? "github-copilot/claude-opus-5.5" : model,
+        usedTokens: usedTokens ?? 293_611,
+        updatedAt: lastTurnAt,
+        now: `2026-10-30T${at}.000Z`,
+      }),
+    ).toBe(expected);
   });
 });

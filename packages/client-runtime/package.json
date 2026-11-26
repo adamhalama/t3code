@@ -391,6 +391,10 @@
       "types": "./src/state/contextWindow.ts",
       "default": "./src/state/contextWindow.ts"
     },
+    "./state/prompt-cache": {
+      "types": "./src/state/promptCache.ts",
+      "default": "./src/state/promptCache.ts"
+    },
     "./state/thread-subagents": {
       "types": "./src/state/threadSubagents.ts",
       "default": "./src/state/threadSubagents.ts"

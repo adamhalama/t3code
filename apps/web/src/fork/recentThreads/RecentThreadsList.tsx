@@ -7,12 +7,14 @@ import {
   CircleDotDashedIcon,
   MessageCircleQuestionIcon,
   ShieldQuestionIcon,
+  SquarePenIcon,
   UserRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 import { memo, useLayoutEffect, useRef } from "react";
 
 import { cn } from "~/lib/utils";
+import { useComposerDraftStore, type DraftId } from "../../composerDraftStore";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { useProject, useThreadShell } from "../../state/entities";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
@@ -25,6 +27,8 @@ import {
   resolveThreadLastVisitedAt,
 } from "../../components/Sidebar.logic";
 import { RecentThreadNumberBadge } from "./RecentThreadRowBadge";
+import { draftPreview } from "./draftPreview";
+import { parseRecentDraftKey } from "./recentThreadsMru";
 
 // The statuses sidebar rows show, with the same icons and colors.
 const STATUS_ICONS: Record<string, { icon: LucideIcon; label: string; className: string }> = {
@@ -78,13 +82,37 @@ function StatusOrTime(props: { thread: SidebarThreadSummary; threadKey: string }
   return <Icon role="img" aria-label={status.label} className={cn("size-3.5", status.className)} />;
 }
 
-function useRecentThread(threadKey: string) {
-  const ref = parseScopedThreadKey(threadKey);
-  const thread = useThreadShell(ref);
-  const project = useProject(
-    thread === null ? null : scopeProjectRef(thread.environmentId, thread.projectId),
+function useRecentDraftTitle(draftId: DraftId | null): string | null {
+  const composer = useComposerDraftStore((state) =>
+    draftId === null ? null : (state.draftsByThreadKey[draftId] ?? null),
   );
-  return { thread, project };
+  return draftId === null ? null : draftPreview(composer);
+}
+
+function useRecentThread(threadKey: string) {
+  const draftId = parseRecentDraftKey(threadKey);
+  const thread = useThreadShell(parseScopedThreadKey(threadKey));
+  const draft = useComposerDraftStore((state) =>
+    draftId === null ? null : state.getDraftSession(draftId),
+  );
+  const draftTitle = useRecentDraftTitle(draftId);
+  const owner = thread ?? draft;
+  const project = useProject(
+    owner === null ? null : scopeProjectRef(owner.environmentId, owner.projectId),
+  );
+  return { thread, project, title: thread?.title ?? (draft === null ? null : draftTitle) };
+}
+
+function RecentThreadStatus(props: { thread: SidebarThreadSummary | null; threadKey: string }) {
+  return props.thread === null ? (
+    <SquarePenIcon
+      role="img"
+      aria-label="Unsent draft"
+      className="size-3.5 text-warning-foreground"
+    />
+  ) : (
+    <StatusOrTime thread={props.thread} threadKey={props.threadKey} />
+  );
 }
 
 /** Keeps the selected row of a scrolling list in view as the selection moves. */
@@ -103,9 +131,9 @@ export const RecentThreadListRow = memo(function RecentThreadListRow(props: {
   index: number;
   selected: boolean;
 }) {
-  const { thread, project } = useRecentThread(props.threadKey);
+  const { thread, project, title } = useRecentThread(props.threadKey);
   const ref = useScrollIntoViewWhenSelected(props.selected);
-  if (thread === null) return null;
+  if (title === null) return null;
   return (
     <li
       ref={ref}
@@ -121,14 +149,14 @@ export const RecentThreadListRow = memo(function RecentThreadListRow(props: {
     >
       <RecentThreadNumberBadge number={props.index + 1} selected={props.selected} />
       {project ? <ProjectFavicon project={project} className="size-4 shrink-0" /> : null}
-      <span className="min-w-0 flex-[0_1_auto] truncate">{thread.title}</span>
+      <span className="min-w-0 flex-[0_1_auto] truncate">{title}</span>
       {project ? (
         <span className="min-w-12 max-w-[34%] flex-[0_1_auto] truncate text-xs text-muted-foreground/70">
           {project.title}
         </span>
       ) : null}
       <span className="ml-auto inline-flex shrink-0 items-center pl-3">
-        <StatusOrTime thread={thread} threadKey={props.threadKey} />
+        <RecentThreadStatus thread={thread} threadKey={props.threadKey} />
       </span>
     </li>
   );
@@ -140,9 +168,9 @@ export const RecentThreadPanelRow = memo(function RecentThreadPanelRow(props: {
   index: number;
   selected: boolean;
 }) {
-  const { thread, project } = useRecentThread(props.threadKey);
+  const { thread, project, title } = useRecentThread(props.threadKey);
   const ref = useScrollIntoViewWhenSelected(props.selected);
-  if (thread === null) return null;
+  if (title === null) return null;
   return (
     <li
       ref={ref}
@@ -159,13 +187,13 @@ export const RecentThreadPanelRow = memo(function RecentThreadPanelRow(props: {
       <RecentThreadNumberBadge number={props.index + 1} selected={props.selected} />
       {project ? <ProjectFavicon project={project} className="size-4 shrink-0" /> : null}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium text-foreground">{thread.title}</span>
+        <span className="truncate text-sm font-medium text-foreground">{title}</span>
         {project ? (
           <span className="truncate text-xs text-secondary-label">{project.title}</span>
         ) : null}
       </span>
       <span className="inline-flex shrink-0 items-center">
-        <StatusOrTime thread={thread} threadKey={props.threadKey} />
+        <RecentThreadStatus thread={thread} threadKey={props.threadKey} />
       </span>
     </li>
   );
@@ -174,5 +202,8 @@ export const RecentThreadPanelRow = memo(function RecentThreadPanelRow(props: {
 /** The title shown in the folded chip. */
 export function useRecentThreadTitle(threadKey: string | null): string {
   const thread = useThreadShell(threadKey === null ? null : parseScopedThreadKey(threadKey));
-  return thread?.title ?? "";
+  const draftTitle = useRecentDraftTitle(
+    threadKey === null ? null : parseRecentDraftKey(threadKey),
+  );
+  return thread?.title ?? draftTitle ?? "";
 }

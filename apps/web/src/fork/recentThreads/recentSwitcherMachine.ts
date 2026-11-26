@@ -12,7 +12,7 @@ export type RecentSwitcherCommitReason = "tap" | "release" | "click";
 
 export interface RecentSwitcherState {
   readonly phase: RecentSwitcherPhase;
-  /** Scoped thread keys in recent order; the open thread, when listed, is first. */
+  /** Recent thread and draft keys; the open entry, when listed, is first. */
   readonly items: readonly string[];
   readonly selected: number;
   readonly listCollapsed: boolean;
@@ -50,6 +50,8 @@ export interface RecentSwitcherMachine {
   readonly move: (direction: 1 | -1) => void;
   readonly release: () => void;
   readonly cancel: () => void;
+  /** Renames listed entries in place, keeping the selection. */
+  readonly replaceItems: (items: readonly string[]) => void;
   readonly commitKey: (key: string) => void;
   readonly toggleList: () => void;
   readonly dispose: () => void;
@@ -123,6 +125,10 @@ export function createRecentSwitcherMachine(
     cancel: () => {
       if (state.phase === "idle") return;
       reset();
+    },
+    replaceItems: (items) => {
+      if (state.phase === "idle" || items.length !== state.items.length) return;
+      set({ ...state, items });
     },
     commitKey: (key) => {
       if (state.phase === "idle") return;

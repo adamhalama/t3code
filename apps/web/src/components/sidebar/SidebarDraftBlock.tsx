@@ -33,6 +33,13 @@ import {
   JUMP_HINT_SLOT_CLASS_NAME,
   JumpHintBadge,
 } from "./SidebarThreadRow";
+// fork: sidebar markers for drafts in Ctrl+Tab
+import { recentDraftKey } from "../../fork/recentThreads/recentThreadsMru";
+import { useRecentThreadRowState } from "../../fork/recentThreads/recentThreadsStore";
+import {
+  RecentThreadRowBadge,
+  recentThreadRowClassName,
+} from "../../fork/recentThreads/RecentThreadRowBadge";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
 const EMPTY_COMPOSER_PARTS = {
@@ -117,6 +124,9 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         : gt("{count, plural, one {{count} attachment} other {{count} attachments}}", {
             count: attachmentCount,
           });
+  // fork: identify the row in the switcher
+  const recentKey = recentDraftKey(draftId);
+  const recentRow = useRecentThreadRowState(recentKey);
   const accessibility = resolveSidebarRowAccessibility({
     title: preview,
     statusLabel: gt("Unsent draft"),
@@ -149,16 +159,19 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   };
   return (
     <li className="list-none py-0.5">
+      {/* fork: connect the draft row to the switcher */}
       <div
         role="button"
         tabIndex={0}
         data-sidebar-row={`draft:${draftId}`}
+        data-recent-switch-commit={recentKey}
         aria-label={accessibility.label}
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
           "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
+          recentThreadRowClassName(recentRow), // fork
         )}
         onClick={handleActivate}
         onContextMenu={handleContextMenu}
@@ -179,23 +192,28 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
                 props.jumpLabel && JUMP_HINT_SLOT_CLASS_NAME,
               )}
             >
-              <SharedTooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={gt("Discard draft")}
-                    onClick={handleDiscard}
-                    className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                }
-                label={
-                  <>
-                    <T>Discard draft</T>
-                  </>
-                }
-              />
+              {/* fork: the recent number takes the discard slot while switching */}
+              {recentRow !== null ? (
+                <RecentThreadRowBadge state={recentRow} />
+              ) : (
+                <SharedTooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={gt("Discard draft")}
+                      onClick={handleDiscard}
+                      className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  }
+                  label={
+                    <>
+                      <T>Discard draft</T>
+                    </>
+                  }
+                />
+              )}
               {props.jumpLabel ? <JumpHintBadge label={props.jumpLabel} /> : null}
             </span>
           </div>

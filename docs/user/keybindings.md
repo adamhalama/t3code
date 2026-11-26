@@ -85,15 +85,13 @@ The last matching rule in `keybindings.json` wins, even across different command
 - `thread.undo` (`mod+z`): Undoes recent sidebar actions (unpin, settle, snooze, archive, discard draft) within 5 seconds, including consecutive actions of the same kind.
 - `navigation.back` (`mod+[`) / `navigation.forward` (`mod+]`): Moves through visited pages.
 - `chat.new` / `chat.newLocal` / `chat.newWithoutProject` (`mod+alt+n`): Start new threads using your [new-thread defaults](./thread-sidebar.md#start-a-thread) or [without a project](./thread-sidebar.md#start-without-a-project).
-<!-- fork: recent thread switcher -->
-- `thread.recent.next` (`ctrl+tab` on every platform) / `thread.recent.previous` (`ctrl+shift+tab`): Switch between recently opened threads. A quick tap opens the previous thread, so repeated taps toggle between the two most recent. Hold Ctrl to see the list: Tab or Shift+Tab moves, releasing Ctrl opens the selected thread, Escape stays. While the list is open, `ctrl+l` folds it into the sidebar chip and back. The list skips archived and deleted threads and starts empty each time the app starts. Threads you left more than 30 minutes ago drop out of it, except the one you came from; change this under **Settings → General → Recent threads timeout**.
+- `thread.recent.next` (`ctrl+tab` on every platform) / `thread.recent.previous` (`ctrl+shift+tab`): Switch between recently opened threads, including unsent drafts. A quick tap opens the previous thread, so repeated taps toggle between the two most recent. Hold Ctrl to see the list: Tab or Shift+Tab moves, releasing Ctrl opens the selected thread, Escape stays. While the list is open, `ctrl+l` folds it into the sidebar chip and back. The list skips archived and deleted threads and discarded drafts. It starts empty each time the app starts. Threads you left more than 30 minutes ago drop out of it, except the one you came from; change this under **Settings → General → Recent threads timeout**. <!-- fork: recent thread switcher -->
 
 ## Reserved and platform shortcuts
 
 - `mod+w` (desktop): Closes the focused terminal or active right-panel tab without closing the window. On web, browsers intercept `mod+w`—rebind `rightPanel.close` and `terminal.close` (e.g. `alt+w`).
 - `mod+shift+t`: Reopens the last closed panel tab (files, diffs, PRs, browsers, devices) in order. Browser tabs reopen as fresh sessions. Rebind on web if your browser intercepts it.
-<!-- fork: recent thread switcher -->
-- `ctrl+tab` / `ctrl+shift+tab` (web): Browsers switch their own tabs and do not pass these keys to the page. Use the recent thread switcher in the desktop app, or bind `thread.recent.next` and `thread.recent.previous` to another shortcut.
+- `ctrl+tab` / `ctrl+shift+tab` (web): Browsers switch their own tabs and do not pass these keys to the page. Use the recent thread switcher in the desktop app, or bind `thread.recent.next` and `thread.recent.previous` to another shortcut. <!-- fork: recent thread switcher -->
 - Keep `!terminalFocus` when remapping shortcuts that shouldn't intercept terminal input. `sidebar.toggle` ignores `Ctrl+B` inside terminals so `tmux` keeps its prefix (`Cmd+B` still works on macOS).
 
 ## Desktop quit shortcut

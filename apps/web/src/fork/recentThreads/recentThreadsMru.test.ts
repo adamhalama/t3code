@@ -6,6 +6,7 @@ import {
   readListCollapsed,
   readTimeoutMinutes,
   RECENT_THREADS_CAP,
+  reconcileRecentThreadEntries,
   recordRecentThreadVisit,
   resolveRecentThreadList,
   writeListCollapsed,
@@ -54,8 +55,8 @@ describe("recordRecentThreadVisit", () => {
   });
 
   it("adds a new thread at the front", () => {
-    expect(recordRecentThreadVisit(entries(["env:a", 1]), null, "env:b", 9)).toEqual(
-      entries(["env:b", 9], ["env:a", 1]),
+    expect(recordRecentThreadVisit(entries(["env:a", 1]), null, ":draft:b", 9)).toEqual(
+      entries([":draft:b", 9], ["env:a", 1]),
     );
   });
 
@@ -71,6 +72,16 @@ describe("recordRecentThreadVisit", () => {
   });
 });
 
+describe("reconcileRecentThreadEntries", () => {
+  it("preserves a draft's position and time when its destination is already listed", () => {
+    const list = entries(["env:b", 10], ["env:a", 8], [":draft:b", 5], ["env:c", 2]);
+    const promoted = (key: string) => (key === ":draft:b" ? "env:b" : key);
+    expect(reconcileRecentThreadEntries(list, promoted)).toEqual(
+      entries(["env:a", 8], ["env:b", 5], ["env:c", 2]),
+    );
+  });
+});
+
 describe("expireRecentThreads", () => {
   const now = 100 * MINUTE;
   const timeout = 30 * MINUTE;
@@ -80,7 +91,7 @@ describe("expireRecentThreads", () => {
       ["env:current", 0],
       ["env:previous", now - 5 * MINUTE],
       ["env:boundary", now - timeout],
-      ["env:old", now - timeout - 1],
+      [":draft:old", now - timeout - 1],
     );
     expect(expireRecentThreads(list, "env:current", now, timeout, anyLive)).toEqual(
       entries(
@@ -92,9 +103,9 @@ describe("expireRecentThreads", () => {
   });
 
   it("always keeps the open thread and the one before it", () => {
-    const list = entries(["env:current", 0], ["env:previous", 0], ["env:older", 0]);
+    const list = entries(["env:current", 0], [":draft:previous", 0], ["env:older", 0]);
     expect(expireRecentThreads(list, "env:current", now, timeout, anyLive)).toEqual(
-      entries(["env:current", 0], ["env:previous", 0]),
+      entries(["env:current", 0], [":draft:previous", 0]),
     );
     expect(expireRecentThreads(list, null, now, timeout, anyLive)).toEqual(
       entries(["env:current", 0]),

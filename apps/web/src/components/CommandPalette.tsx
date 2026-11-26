@@ -300,6 +300,7 @@ import { IssueGlyph } from "~/components/issue/issuePresentation";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { threadRecentUse } from "@t3tools/shared/paletteSearch";
 import { SharedTooltipTrigger } from "./ui/shared-tooltip";
+import { useCompactThreadPaletteItem } from "../fork/promptCache/useCompactThreadPaletteItem"; // fork: prompt cache
 
 const EMPTY_BROWSE_ENTRIES: FilesystemBrowseResult["entries"] = [];
 const ADD_PROJECT_ENTRY_GROUP = "add-project";
@@ -529,6 +530,10 @@ function OpenCommandPaletteDialog(props: {
   const workflowsReachable = useWorkflowEnvironmentIds().length > 0;
   const activeThreadServerConfig = useServerConfigs().get(
     activeThread?.environmentId ?? ("" as EnvironmentId),
+  );
+  // fork: prompt cache
+  const compactThreadItem = useCompactThreadPaletteItem(
+    activeThread ? scopeThreadRef(activeThread.environmentId, activeThread.id) : null,
   );
   const canShareActiveThreadWithGuest = useAtomValue(
     canShareWithGuestAtom(activeThread?.environmentId ?? ("" as EnvironmentId)),
@@ -1621,6 +1626,7 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
+  if (compactThreadItem) actionItems.push(compactThreadItem); // fork: prompt cache
 
   actionItems.push(...currentThreadActionItems);
 

@@ -227,6 +227,7 @@ import {
 } from "./ComposerAttachmentStrip";
 import { CollapsedComposerStopAction, ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
+import { PromptCacheChip } from "../../fork/promptCache/PromptCacheChip"; // fork: prompt cache
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { resolveComposerMenuActiveItemId } from "./composerMenuHighlight";
 import { buildPullRequestReferenceContext } from "../pullRequest/pullRequestDetail.logic";
@@ -4140,6 +4141,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     keepFullHistory={props.keepFullHistory}
                     onToggleKeepFullHistory={props.onToggleKeepFullHistory}
                   >
+                    {/* fork: prompt cache */}
+                    {activeThreadId === null ? null : (
+                      <PromptCacheChip
+                        environmentId={environmentId}
+                        threadId={activeThreadId}
+                        placement="composer"
+                      />
+                    )}
                     {speechInput.available ? (
                       <>
                         <ComposerSpeechRecordingPill

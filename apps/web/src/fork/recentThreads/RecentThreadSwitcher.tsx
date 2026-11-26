@@ -10,10 +10,15 @@ import { isMacPlatform } from "../../lib/utils";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../../shortcuts/dispatcher";
 import { primaryServerKeybindingsAtom } from "../../state/server";
-import { buildThreadRouteParams, resolveThreadRouteTarget } from "../../threadRoutes";
+import {
+  buildDraftThreadRouteParams,
+  buildThreadRouteParams,
+  resolveThreadRouteTarget,
+} from "../../threadRoutes";
 import { RecentThreadsChip } from "./RecentThreadsChip";
 import { lookupThread } from "./recentThreadLookup";
 import { RecentThreadPanelRow } from "./RecentThreadsList";
+import { parseRecentDraftKey, recentDraftKey } from "./recentThreadsMru";
 import {
   recentSwitcher,
   recordRouteThread,
@@ -21,6 +26,7 @@ import {
   selectRecentSwitcherSelectedKey,
   setRecentSwitcherCommitHandler,
   setRecentSwitcherHoldKeyLabel,
+  subscribeRecentDrafts,
   useRecentSwitcherOpen,
   useRecentThreadsStore,
 } from "./recentThreadsStore";
@@ -35,7 +41,10 @@ const NO_MODIFIERS: HeldModifiers = { ctrl: false, meta: false, alt: false };
 
 function routeThreadKeyOfParams(params: Parameters<typeof resolveThreadRouteTarget>[0]) {
   const target = resolveThreadRouteTarget(params);
-  return target?.kind === "server" ? scopedThreadKey(target.threadRef) : null;
+  if (target === null) return null;
+  return target.kind === "draft"
+    ? recentDraftKey(target.draftId)
+    : scopedThreadKey(target.threadRef);
 }
 
 function readRouteThreadKey(router: AnyRouter): string | null {
@@ -73,6 +82,13 @@ function consume(event: Event): void {
 
 function closestData(target: EventTarget | null, attribute: string): HTMLElement | null {
   return target instanceof Element ? (target.closest<HTMLElement>(`[${attribute}]`) ?? null) : null;
+}
+
+function sidebarRowSelector(key: string): string {
+  const escaped = CSS.escape(key);
+  return parseRecentDraftKey(key) === null
+    ? `[data-sidebar-row="${escaped}"]`
+    : `[data-sidebar-row][data-recent-switch-commit="${escaped}"]`;
 }
 
 /**
@@ -217,22 +233,29 @@ function installRecentThreadSwitcherInput(router: AnyRouter): () => void {
     const key = selectRecentSwitcherSelectedKey(state);
     if (key === null || key === selectRecentSwitcherSelectedKey(previous)) return;
     requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-sidebar-row="${CSS.escape(key)}"]`)
-        ?.scrollIntoView({ block: "nearest" });
+      document.querySelector(sidebarRowSelector(key))?.scrollIntoView({ block: "nearest" });
     });
   });
 
   const disposers = [
     setRecentSwitcherCommitHandler((key) => {
+      if (key === readRouteThreadKey(router)) return;
+      const draftId = parseRecentDraftKey(key);
       const ref = parseScopedThreadKey(key);
-      if (ref === null || key === readRouteThreadKey(router)) return;
+      if (draftId === null && ref === null) return;
       // Recorded now, not when the route settles, so a quick second tap already sees the switch.
       recordRouteThread(key, lookupThread);
-      void router.navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(ref),
-      });
+      if (draftId !== null) {
+        void router.navigate({
+          to: "/draft/$draftId",
+          params: buildDraftThreadRouteParams(draftId),
+        });
+      } else if (ref !== null) {
+        void router.navigate({
+          to: "/$environmentId/$threadId",
+          params: buildThreadRouteParams(ref),
+        });
+      }
     }),
     registerCommands(
       {
@@ -334,8 +357,10 @@ function RecentThreadsSlimPanel() {
 /** Dims every sidebar thread row but the selection, without re-rendering the rows. */
 function RecentThreadsSidebarDim() {
   const selectedKey = useRecentThreadsStore(selectRecentSwitcherSelectedKey);
-  const keep = selectedKey === null ? "" : `:not([data-sidebar-row="${CSS.escape(selectedKey)}"])`;
-  return <style>{`[data-thread-item] [data-sidebar-row]${keep}{opacity:.4}`}</style>;
+  const keep = selectedKey === null ? "" : `:not(${sidebarRowSelector(selectedKey)})`;
+  return (
+    <style>{`:is([data-thread-item] [data-sidebar-row],[data-sidebar-row][data-recent-switch-commit])${keep}{opacity:.4}`}</style>
+  );
 }
 
 /**
@@ -347,6 +372,9 @@ export function RecentThreadSwitcher() {
   const routeThreadKey = useParams({ strict: false, select: routeThreadKeyOfParams });
   const open = useRecentSwitcherOpen();
   const sidebarVisible = useSidebarVisibility();
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reconciles the in-memory list when drafts hydrate, promote or disappear
+  useEffect(subscribeRecentDrafts, []);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records each route change in the in-memory recent list, which lives outside React
   useEffect(() => {

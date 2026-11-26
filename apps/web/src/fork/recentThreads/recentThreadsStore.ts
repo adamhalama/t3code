@@ -1,7 +1,8 @@
-import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
+import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 import { create } from "zustand";
 
+import { useComposerDraftStore, type DraftId } from "../../composerDraftStore";
 import {
   createRecentSwitcherMachine,
   IDLE_RECENT_SWITCHER_STATE,
@@ -12,8 +13,11 @@ import {
 import {
   browserStorage,
   expireRecentThreads,
+  parseRecentDraftKey,
   readListCollapsed,
   readTimeoutMinutes,
+  recentDraftKey,
+  reconcileRecentThreadEntries,
   recordRecentThreadVisit,
   resolveRecentThreadList,
   writeListCollapsed,
@@ -41,6 +45,63 @@ export const useRecentThreadsStore = create<RecentThreadsStoreState>(() => ({
 let recentEntries: readonly RecentThreadEntry[] = [];
 let routeThreadKey: string | null = null;
 let timeoutMinutes = readTimeoutMinutes(browserStorage());
+
+function resolveRecentKey(
+  key: string,
+  drafts: ReturnType<typeof useComposerDraftStore.getState>,
+  hydrated: boolean,
+): string | null {
+  const draftId = parseRecentDraftKey(key);
+  if (draftId === null) {
+    // A thread still promoting from a draft keeps the draft's entry until it finalizes.
+    const ref = parseScopedThreadKey(key);
+    if (ref === null) return key;
+    for (const [id, draft] of Object.entries(drafts.draftThreadsByThreadKey)) {
+      if (draft.promotedTo && scopedThreadKey(draft.promotedTo) === key) {
+        return recentDraftKey(id as DraftId);
+      }
+    }
+    return key;
+  }
+  // `promotedTo` alone is provisional: a failed send can restore the draft.
+  if (Object.hasOwn(drafts.promotedDraftRedirects, draftId)) {
+    return scopedThreadKey(drafts.promotedDraftRedirects[draftId]!);
+  }
+  return !hydrated || Object.hasOwn(drafts.draftThreadsByThreadKey, draftId) ? key : null;
+}
+
+export function subscribeRecentDrafts(): () => void {
+  const sync = () => {
+    const drafts = useComposerDraftStore.getState();
+    const hydrated = useComposerDraftStore.persist.hasHydrated();
+    const resolveKey = (key: string) => resolveRecentKey(key, drafts, hydrated);
+    recentEntries = reconcileRecentThreadEntries(recentEntries, resolveKey);
+    if (routeThreadKey !== null) routeThreadKey = resolveKey(routeThreadKey);
+    const { items } = recentSwitcher.getState();
+    const nextItems = items.map(resolveKey);
+    if (nextItems.some((key, index) => key !== items[index])) {
+      // Re-key promoted drafts in place; a discarded or duplicated entry closes the picker.
+      if (nextItems.every((key) => key !== null) && new Set(nextItems).size === nextItems.length) {
+        recentSwitcher.replaceItems(nextItems);
+      } else {
+        recentSwitcher.cancel();
+      }
+    }
+  };
+  const unsubscribe = useComposerDraftStore.subscribe((drafts, previous) => {
+    if (
+      drafts.draftThreadsByThreadKey !== previous.draftThreadsByThreadKey ||
+      drafts.promotedDraftRedirects !== previous.promotedDraftRedirects
+    )
+      sync();
+  });
+  const unsubscribeHydration = useComposerDraftStore.persist.onFinishHydration(sync);
+  sync();
+  return () => {
+    unsubscribe();
+    unsubscribeHydration();
+  };
+}
 
 export function getRecentThreadsTimeoutMinutes(): number {
   return timeoutMinutes;
@@ -73,10 +134,18 @@ export function setRecentThreadsTimeoutMinutes(
 
 /** Called with every thread the route opens, and null when it leaves threads. */
 export function recordRouteThread(
-  nextKey: string | null,
+  key: string | null,
   lookup: RecentThreadLookup,
   now = Date.now(),
 ): void {
+  const nextKey =
+    key === null
+      ? null
+      : resolveRecentKey(
+          key,
+          useComposerDraftStore.getState(),
+          useComposerDraftStore.persist.hasHydrated(),
+        );
   if (nextKey === routeThreadKey) return;
   recentEntries = recordRecentThreadVisit(recentEntries, routeThreadKey, nextKey, now);
   routeThreadKey = nextKey;

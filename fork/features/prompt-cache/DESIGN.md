@@ -76,6 +76,8 @@ Cost rows, each marked `≈`:
 - Requests the provider makes on its own, such as keep-alive or warming requests, are invisible
   to the client. A cache they keep warm still reads cold, except for the planner entry above,
   whose warm window is configured here to match.
+- After a compaction, OpenCode reports no usage, so T3 Code's context meter keeps the
+  pre-compaction size, and the cache state is hidden until the next reply reports usage.
 - Prices come only from the Usage page's price overrides, matched by the recorded model name after
   model aliases. Without an override for the model, the rows show tokens only.
 - Switching models in Claude Code isn't detected, because Claude Code records a model's full ID

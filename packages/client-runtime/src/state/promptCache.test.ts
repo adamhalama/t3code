@@ -1,3 +1,4 @@
+import { ProviderThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -154,9 +155,19 @@ describe("promptCacheState", () => {
 describe("promptCacheModel", () => {
   const sample = { ...usage };
   const reroutedSample = { ...usage };
+  const providerThreadId = ProviderThreadId.make("provider-thread");
   const turns = [
-    { tokenUsage: reroutedSample, model: "github-copilot/gpt-6.2-sol" },
     {
+      providerThreadId,
+      ordinal: 1,
+      status: "completed",
+      tokenUsage: reroutedSample,
+      model: "github-copilot/gpt-6.2-sol",
+    },
+    {
+      providerThreadId,
+      ordinal: 2,
+      status: "completed",
       tokenUsage: sample,
       turnTokenUsage: {
         usageScope: "main_agent",
@@ -194,8 +205,18 @@ describe("promptCacheModel", () => {
       sendModel: null,
       expected: null,
     },
-  ])("is $name", ({ usage: sampled, sendModel, expected }) => {
-    expect(promptCacheModel({ turns, usage: sampled, sendModel })).toBe(expected);
+    {
+      name: "unknown after a later completed turn reported no usage, such as a compaction",
+      usage: sample,
+      sendModel: "github-copilot/claude-opus-5.5",
+      later: { providerThreadId, ordinal: 3, status: "completed" },
+      expected: null,
+    },
+  ] as const)("is $name", (row) => {
+    const allTurns = "later" in row ? [...turns, row.later] : turns;
+    expect(promptCacheModel({ turns: allTurns, usage: row.usage, sendModel: row.sendModel })).toBe(
+      row.expected,
+    );
   });
 });
 

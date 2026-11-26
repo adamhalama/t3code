@@ -62,39 +62,64 @@ export function hasPromptCacheLifetime(driver: string | null | undefined): boole
 }
 
 type UsageTurns = ReadonlyArray<
-  Pick<OrchestrationV2ProviderTurn, "tokenUsage" | "turnTokenUsage" | "model">
+  Pick<
+    OrchestrationV2ProviderTurn,
+    "providerThreadId" | "ordinal" | "status" | "tokenUsage" | "turnTokenUsage" | "model"
+  >
 >;
 
+interface UsageSampleTurn {
+  readonly usage: OrchestrationV2ProviderTurnTokenUsage;
+  readonly model: string | null;
+  /** A later completed turn on the same provider thread reported no usage, such as a compaction. */
+  readonly superseded: boolean;
+}
+
 // A projection change replaces its turns array, so each array is scanned once per usage sample.
-const usageModelByTurns = new WeakMap<
-  UsageTurns,
-  { readonly usage: OrchestrationV2ProviderTurnTokenUsage; readonly model: string | null }
->();
+const usageSampleTurns = new WeakMap<UsageTurns, UsageSampleTurn>();
+
+function usageSampleTurn(turns: UsageTurns, usage: OrchestrationV2ProviderTurnTokenUsage) {
+  const cached = usageSampleTurns.get(turns);
+  if (cached?.usage === usage) return cached;
+  const turn = turns.find((candidate) => candidate.tokenUsage === usage);
+  const sample = {
+    usage,
+    model: turn?.model ?? turn?.turnTokenUsage?.models?.at(-1) ?? null,
+    superseded:
+      turn !== undefined &&
+      turns.some(
+        (later) =>
+          later.providerThreadId === turn.providerThreadId &&
+          later.ordinal > turn.ordinal &&
+          later.status === "completed" &&
+          later.tokenUsage === undefined,
+      ),
+  };
+  usageSampleTurns.set(turns, sample);
+  return sample;
+}
 
 /** The model that produced a usage sample, as its provider turn recorded it. */
 export function promptCacheUsageModel(
   turns: UsageTurns,
   usage: OrchestrationV2ProviderTurnTokenUsage | null,
 ): string | null {
-  if (usage === null) return null;
-  const cached = usageModelByTurns.get(turns);
-  if (cached?.usage === usage) return cached.model;
-  const turn = turns.find((candidate) => candidate.tokenUsage === usage);
-  const model = turn?.model ?? turn?.turnTokenUsage?.models?.at(-1) ?? null;
-  usageModelByTurns.set(turns, { usage, model });
-  return model;
+  return usage === null ? null : usageSampleTurn(turns, usage).model;
 }
 
 /**
  * The model whose cache the next send can reuse: the one that produced the usage, or null when the
- * thread now sends to another model, whose cache starts empty.
+ * thread now sends to another model, whose cache starts empty, or when a later completed turn
+ * reported no usage, so the usage no longer describes the context.
  */
 export function promptCacheModel(input: {
   readonly turns: UsageTurns;
   readonly usage: OrchestrationV2ProviderTurnTokenUsage | null;
   readonly sendModel: string | null | undefined;
 }): string | null {
-  const model = promptCacheUsageModel(input.turns, input.usage);
+  if (input.usage === null) return null;
+  const { model, superseded } = usageSampleTurn(input.turns, input.usage);
+  if (superseded) return null;
   return input.sendModel == null || input.sendModel === model ? model : null;
 }
 
